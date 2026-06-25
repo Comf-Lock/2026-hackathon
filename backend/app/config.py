@@ -24,5 +24,13 @@ class Settings(BaseSettings):
     # Where to send the browser back to after a successful login.
     frontend_url: str = "http://localhost:5173"
 
+    # --- Ingestion search scope (slice 2) ---
+    # Default fixed to Mainfranken (Würzburg centre); override via .env to widen the scope
+    # without code changes (goal: later global). Keywords/cities live on GeoScope defaults.
+    ingest_center_label: str = "Würzburg"
+    ingest_center_lat: float = 49.7913
+    ingest_center_lng: float = 9.9534
+    ingest_radius_km: int = 60
+
 
 settings = Settings()
