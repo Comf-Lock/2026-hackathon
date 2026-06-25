@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+# Local dev/test databases (runtime artifacts — never commit)
+*.db
