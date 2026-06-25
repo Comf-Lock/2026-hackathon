@@ -35,7 +35,15 @@ Event Radar — Slice 2 (Ingestion-Fundament). Phase A (Event/EventSource-Modell
 
 ## decisions_made
 
-*(keine)*
+- **2026-06-25 · Slice-2-Doppelbau-Konsolidierung → agent-1-Linie + Rosinen (Lars bestätigt).**
+  Befund: agent-1 (master + Phase-C-PR #8) und agent-2 (Branch, nicht gemergt) haben Slice-2-Ingestion
+  parallel doppelt gebaut (agent-2 vor PR #5 abgezweigt). master gehört der agent-1-Linie; mein Phase C
+  hat 3 Adapter (thws_fiw/eventbrite_wue/meetup) vs. agent-2 nur 1 (eventbrite via Playwright).
+  **Entscheidung:** master + PR #8 bleiben Basis. Aus agent-2 nur die einzigartigen Rosinen cherry-picken:
+  (1) `browser.py` Playwright-Harness, (2) Geo-Verfeinerung Radius 75km + `postal_prefixes` (97/63)-Fallback,
+  (3) free-event price-fix. agent-2s Duplikat-Fundament (core/filter/eventbrite/cli/events) wird verworfen.
+  Bewusst NICHT übernommen: agent-2s strikte „geo-blank = drop"-Philosophie (würde meine trusted
+  THWS-Events mit city=None fälschlich verwerfen). Root-Cause: zwei Agents auf denselben Slice (Orchestrierung).
 
 ## Iteration History
 

@@ -34,6 +34,24 @@ def _to_float(value) -> float | None:
         return None
 
 
+def _price(ev: dict) -> str | None:
+    """Map schema.org offers to a short price string. A free event has lowPrice 0 (falsy), so we
+    must check for None explicitly — `lowPrice or price` would swallow it and miss "kostenlos"."""
+    offers = ev.get("offers")
+    if isinstance(offers, list):
+        offers = next((o for o in offers if isinstance(o, dict)), None)
+    if not isinstance(offers, dict):
+        return None
+    low = offers.get("lowPrice")
+    if low is None:
+        low = offers.get("price")
+    if low in (0, "0", "0.0"):
+        return "kostenlos"
+    if low:
+        return f"ab {low} {offers.get('priceCurrency', '')}".strip()
+    return None
+
+
 def _parse_date(value: str | None):
     """Eventbrite gives either a bare date ('2026-06-26') or a full ISO datetime."""
     if not value:
@@ -76,6 +94,7 @@ def _event_to_record(ev: dict) -> RawEventRecord | None:
         lng=_to_float(geo.get("longitude")),
         url=url,
         image_url=(ev.get("image") or None),
+        price=_price(ev),
     )
 
 

@@ -6,9 +6,16 @@ required fields present, provenance set, dates tz-aware, and the source-specific
 """
 from __future__ import annotations
 
-from app.ingest.adapters.eventbrite_wue import parse_eventbrite
+from app.ingest.adapters.eventbrite_wue import _price, parse_eventbrite
 from app.ingest.adapters.meetup import parse_meetup
 from app.ingest.adapters.thws_fiw import parse_thws_fiw
+
+
+def test_eventbrite_price_free_event_not_swallowed():
+    # lowPrice 0 is falsy — `lowPrice or price` would miss it; must map to "kostenlos".
+    assert _price({"offers": {"lowPrice": 0, "priceCurrency": "EUR"}}) == "kostenlos"
+    assert _price({"offers": [{"lowPrice": 25, "priceCurrency": "EUR"}]}) == "ab 25 EUR"
+    assert _price({}) is None
 
 
 def _assert_wellformed(records, adapter_name):

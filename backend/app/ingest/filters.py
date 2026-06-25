@@ -36,6 +36,14 @@ def passes_geo(record: RawEventRecord, scope: GeoScope) -> tuple[bool, str]:
             return True, f"within {dist:.0f}km"
         return False, f"{dist:.0f}km > {scope.radius_km}km radius"
 
+    # Postal code but no coordinates — coarse structural fallback (97xxx Unterfranken, 63xxx
+    # Bayerischer Untermain). A wrong-region postal code is a definite out-of-scope signal.
+    if record.postal_code:
+        pc = record.postal_code.strip()
+        if any(pc.startswith(p) for p in scope.postal_prefixes):
+            return True, f"postal={pc[:2]}xxx"
+        return False, f"postal {pc!r} not in scope"
+
     if record.city:
         city = record.city.casefold()
         if any(c.casefold() in city or city in c.casefold() for c in scope.cities):
