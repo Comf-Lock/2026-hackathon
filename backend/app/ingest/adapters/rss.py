@@ -52,8 +52,14 @@ def parse_rss(
     default_city: str | None = None,
     default_organizer: str | None = None,
     default_tags: list[str] | None = None,
+    prefer_title_date: bool = False,
 ) -> list[RawEventRecord]:
-    """Parse RSS/Atom content into RawEventRecords. Entries without title/date are skipped."""
+    """Parse RSS/Atom content into RawEventRecords. Entries without title/date are skipped.
+
+    With ``prefer_title_date`` the real event date is read from the item title (FRIZZ embeds
+    'DD.MM.YYYY HH:MM' there) and the RSS pubDate is only a fallback — otherwise the stored start
+    would be the publish date, which the upcoming-events filter would wrongly drop.
+    """
     default_tags = default_tags or []
     feed = feedparser.parse(content)
     records: list[RawEventRecord] = []
@@ -61,9 +67,11 @@ def parse_rss(
     for entry in feed.entries:
         try:
             title = N.clean_text(entry.get("title"))
-            start = N.from_struct_time(
+            published = N.from_struct_time(
                 entry.get("published_parsed") or entry.get("updated_parsed")
             )
+            title_date = N.parse_de_datetime(title) if prefer_title_date else None
+            start = title_date or published
             if not title or start is None:
                 continue
 
@@ -109,6 +117,7 @@ class RSSFeedAdapter(BaseAdapter):
         default_city: str | None = None,
         default_organizer: str | None = None,
         default_tags: list[str] | None = None,
+        prefer_title_date: bool = False,
     ) -> None:
         self.name = name
         self.url = url
@@ -118,6 +127,7 @@ class RSSFeedAdapter(BaseAdapter):
         self.default_city = default_city
         self.default_organizer = default_organizer
         self.default_tags = default_tags or []
+        self.prefer_title_date = prefer_title_date
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
         async with httpx.AsyncClient(
@@ -138,6 +148,7 @@ class RSSFeedAdapter(BaseAdapter):
             default_city=self.default_city,
             default_organizer=self.default_organizer,
             default_tags=self.default_tags,
+            prefer_title_date=self.prefer_title_date,
         )
 
 
@@ -152,5 +163,6 @@ register(
         default_city="Würzburg",
         default_organizer="FRIZZ Würzburg",
         default_tags=["frizz", "stadtkalender"],
+        prefer_title_date=True,
     )
 )

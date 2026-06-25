@@ -18,6 +18,9 @@ BERLIN = ZoneInfo("Europe/Berlin")
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
 _POSTAL_RE = re.compile(r"\b(\d{5})\b")
+# German calendar date, optionally with a time — e.g. "26.06.2026 18:00". Several municipal RSS
+# feeds (FRIZZ) carry the real event date in the item title while pubDate is only the publish date.
+_DE_DT_RE = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?")
 
 _ONLINE_HINTS = (
     "online", "zoom", "webinar", "virtual", "livestream", "live-stream",
@@ -47,6 +50,24 @@ def from_struct_time(st: object) -> datetime | None:
     try:
         return datetime(*st[:6], tzinfo=timezone.utc)  # type: ignore[misc]
     except (TypeError, ValueError):
+        return None
+
+
+def parse_de_datetime(text: object) -> datetime | None:
+    """Extract the first German 'DD.MM.YYYY [HH:MM]' date in `text` as aware Europe/Berlin, else None."""
+    if not text:
+        return None
+    m = _DE_DT_RE.search(str(text))
+    if not m:
+        return None
+    day, month, year, hh, mm = m.groups()
+    try:
+        return datetime(
+            int(year), int(month), int(day),
+            int(hh) if hh else 0, int(mm) if mm else 0,
+            tzinfo=BERLIN,
+        )
+    except ValueError:
         return None
 
 
