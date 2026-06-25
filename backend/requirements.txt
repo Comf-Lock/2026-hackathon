@@ -10,3 +10,5 @@ beautifulsoup4>=4.12
 playwright>=1.44
 pydantic-settings>=2.5
 itsdangerous>=2.2
+icalendar>=6.0
+feedparser>=6.0

@@ -27,6 +27,11 @@ URL_TO_FIXTURE = {
     meetup.GROUP_URLS[1]: "meetup_analytics_pioneers.html",
 }
 
+# This smoke pins its assertions to the three HTML adapters it has fixtures for. Other registered
+# adapters (ICS/RSS sources) fetch URLs that aren't in URL_TO_FIXTURE, so they're excluded here to
+# keep the run hermetic and deterministic — they carry their own parse tests.
+FIXTURE_ADAPTERS = ["eventbrite_wue", "meetup", "thws_fiw"]
+
 
 @pytest.fixture
 def serve_fixtures(monkeypatch, fixture_text):
@@ -49,7 +54,7 @@ def test_three_adapters_register():
 
 
 def test_full_run_persists_and_filters(serve_fixtures, session):
-    report = asyncio.run(run_ingestion(session))
+    report = asyncio.run(run_ingestion(session, names=FIXTURE_ADAPTERS))
 
     events = session.exec(select(Event)).all()
     assert events, "expected events persisted"
@@ -72,10 +77,10 @@ def test_full_run_persists_and_filters(serve_fixtures, session):
 
 
 def test_rerun_is_idempotent(serve_fixtures, session):
-    first = asyncio.run(run_ingestion(session))
+    first = asyncio.run(run_ingestion(session, names=FIXTURE_ADAPTERS))
     count_after_first = len(session.exec(select(Event)).all())
 
-    second = asyncio.run(run_ingestion(session))
+    second = asyncio.run(run_ingestion(session, names=FIXTURE_ADAPTERS))
     count_after_second = len(session.exec(select(Event)).all())
 
     assert count_after_second == count_after_first  # no duplicates
@@ -94,7 +99,7 @@ def test_failing_adapter_is_isolated(serve_fixtures, session, monkeypatch):
     from app.ingest import registry
 
     monkeypatch.setitem(registry._REGISTRY, "boom", BoomAdapter())
-    report = asyncio.run(run_ingestion(session))
+    report = asyncio.run(run_ingestion(session, names=[*FIXTURE_ADAPTERS, "boom"]))
 
     boom = next(r for r in report.per_source if r.source == "boom")
     assert boom.error and "source down" in boom.error
