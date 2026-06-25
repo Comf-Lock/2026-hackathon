@@ -5,7 +5,7 @@ Its only job here is to prove the scraper's output reached the store and is read
 Ordered by start ascending so upcoming events come first.
 """
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session, func, select
 
 from .db import get_session
@@ -15,6 +15,9 @@ router = APIRouter(prefix="/api/events", tags=["events"])
 
 
 class EventOut(BaseModel):
+    # from_attributes lets us build the response straight from the Event ORM rows.
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     title: str
     start: object
