@@ -10,3 +10,7 @@ plugins/project-setup/bin/run-agent-setup.sh
 plugins/project-setup/bin/teardown-onboarding.sh
 plugins/project-setup/workflows/
 _scrape/
+
+# Node
+node_modules/
+dist/
