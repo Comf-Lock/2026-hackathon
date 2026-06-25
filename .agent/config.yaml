@@ -21,12 +21,13 @@ client: zdi
 #     frontend: vue-alpine
 #     backend: express-drizzle
 
-# Hybrid: Vue-Frontend (wie patent-validator / agent-os-monitor) + FastAPI-Backend (wie mail-ops).
-# Phasiert: Phase 1 Client-only Seed-Demo (Vue+Vite, plain scoped CSS), Phase 2 FastAPI für
-# Login + Connectoren + Intent-Scoring (Claude Haiku via httpx). Karte: Leaflet + OpenStreetMap.
+# Produkt "Event Radar" — Hybrid: Vue-Frontend (wie patent-validator / agent-os-monitor)
+# + FastAPI-Backend (wie mail-ops). Vollwertige Produktentwicklung, kein Zeitdruck:
+# Vue 3 + Vite (plain scoped CSS) · FastAPI · PostgreSQL + PostGIS · Redis (Queue + Cache)
+# · Connector-Worker · Claude Haiku fürs Intent-Scoring · Leaflet/OpenStreetMap.
 stacks:
   frontend: vue-vite
-  backend: python-fastapi
+  backend: python-fastapi-postgres
 
 # plugins: Opt-in Plugin-Registry — Plugins aus agent-core/plugins/ die in diesem Projekt aktiv sind.
 # Verfügbare Plugins: project-setup, wiki-engineer
