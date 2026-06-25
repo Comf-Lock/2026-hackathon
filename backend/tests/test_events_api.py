@@ -1,68 +1,120 @@
-"""HTTP-level test for GET /api/events.
-
-The ingestion suite covers parsing/filter/upsert, but nothing exercised the events endpoint over
-HTTP — and a missing `from_attributes` on EventOut meant serialising ORM rows raised a 500 that the
-unit tests never saw. This test closes that gap: it drives the real FastAPI app with an in-memory
-DB and asserts the response shape the frontend's useEventSearch contract depends on.
-"""
+"""Contract tests for GET /api/events (and /{id})."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
-
-from app.db import get_session
-from app.main import app
 from app.models import Event
 
+NOW = datetime.now(timezone.utc)
 
-@pytest.fixture
-def client():
-    # StaticPool keeps the single in-memory DB alive across connections, so the seed and the
-    # request-scoped sessions opened by the override share the same tables.
-    engine = create_engine(
-        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+EVENT_OUT_FIELDS = {
+    "id", "title", "description", "start", "end", "is_online", "venue_name",
+    "address", "city", "postal_code", "lat", "lng", "organizer", "tags", "url",
+    "image_url", "price", "language",
+}
+
+
+def _mk(session, **kw) -> Event:
+    defaults = dict(
+        title="Event",
+        start=NOW + timedelta(days=1),
+        is_online=False,
+        tags=[],
     )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        s.add_all([
-            Event(title="FrankenJS Vue 3", start=datetime(2026, 7, 18, 19, tzinfo=timezone.utc), city="Würzburg"),
-            Event(title="THWS Summit", start=datetime(2026, 7, 21, 9, tzinfo=timezone.utc), city="Schweinfurt", is_online=False),
-            Event(title="AI Remote Night", start=datetime(2026, 7, 15, 19, tzinfo=timezone.utc), is_online=True),
-        ])
-        s.commit()
-
-    def _override():
-        with Session(engine) as s:
-            yield s
-
-    app.dependency_overrides[get_session] = _override
-    yield TestClient(app)
-    app.dependency_overrides.clear()
+    defaults.update(kw)
+    ev = Event(**defaults)
+    session.add(ev)
+    session.commit()
+    session.refresh(ev)
+    return ev
 
 
-def test_list_events_serialises_orm_rows(client):
-    # The regression: constructing EventOut from Event ORM objects must not 500.
+def test_empty_search_returns_contract_shape(client):
     r = client.get("/api/events")
     assert r.status_code == 200
     body = r.json()
-    assert body["total"] == 3
-    assert {"total", "limit", "offset", "items"} <= body.keys()
-    item = body["items"][0]
-    # Contract fields the frontend reads.
-    assert {"id", "title", "start", "is_online", "city", "venue_name", "url"} <= item.keys()
-    # Ordered by start ascending → AI Remote Night (15.) comes first.
-    assert [e["title"] for e in body["items"]] == ["AI Remote Night", "FrankenJS Vue 3", "THWS Summit"]
+    assert set(body.keys()) == {"total", "items"}
+    assert body == {"total": 0, "items": []}
 
 
-def test_list_events_pagination(client):
-    r = client.get("/api/events?limit=1&offset=1")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["total"] == 3
-    assert body["limit"] == 1 and body["offset"] == 1
-    assert len(body["items"]) == 1
-    assert body["items"][0]["title"] == "FrankenJS Vue 3"
+def test_item_has_every_eventout_field(client, session):
+    _mk(session, title="Python Meetup", organizer="WUE Data", city="Würzburg", tags=["python"])
+    body = client.get("/api/events").json()
+    assert body["total"] == 1
+    (item,) = body["items"]
+    assert set(item.keys()) == EVENT_OUT_FIELDS
+    assert item["title"] == "Python Meetup"
+    # start is a parseable ISO8601 string. (The +TZ offset is preserved on Postgres/timestamptz;
+    # SQLite — the test backend — round-trips datetimes naive, so we don't assert the offset here.)
+    assert datetime.fromisoformat(item["start"]).date().isoformat().startswith("2026-")
+
+
+def test_q_matches_title_description_organizer(client, session):
+    _mk(session, title="Python Night")
+    _mk(session, title="Rust Talk", description="deep dive into python internals")
+    _mk(session, title="Design Jam", organizer="JavaScript Würzburg")
+    _mk(session, title="Cooking Class")
+
+    assert client.get("/api/events", params={"q": "python"}).json()["total"] == 2
+    assert client.get("/api/events", params={"q": "javascript"}).json()["total"] == 1
+    assert client.get("/api/events", params={"q": "nothinghere"}).json()["total"] == 0
+
+
+def test_city_and_is_online_filters(client, session):
+    _mk(session, title="A", city="Würzburg", is_online=False)
+    _mk(session, title="B", city="Schweinfurt", is_online=False)
+    _mk(session, title="C", city=None, is_online=True)
+
+    assert client.get("/api/events", params={"city": "Würzburg"}).json()["total"] == 1
+    assert client.get("/api/events", params={"is_online": "true"}).json()["total"] == 1
+    assert client.get("/api/events", params={"is_online": "false"}).json()["total"] == 2
+
+
+def test_tag_filter_any_match(client, session):
+    _mk(session, title="A", tags=["python", "data"])
+    _mk(session, title="B", tags=["javascript"])
+    _mk(session, title="C", tags=[])
+
+    assert client.get("/api/events", params={"tag": "python"}).json()["total"] == 1
+    # repeatable tag → keep if ANY matches
+    r = client.get("/api/events", params=[("tag", "python"), ("tag", "javascript")])
+    assert r.json()["total"] == 2
+
+
+def test_upcoming_default_excludes_past_but_date_from_includes(client, session):
+    _mk(session, title="Past", start=NOW - timedelta(days=10))
+    _mk(session, title="Future", start=NOW + timedelta(days=10))
+
+    # default: only upcoming
+    body = client.get("/api/events").json()
+    assert body["total"] == 1 and body["items"][0]["title"] == "Future"
+
+    # explicit date_from in the past surfaces the old event too
+    past_day = (NOW - timedelta(days=20)).date().isoformat()
+    assert client.get("/api/events", params={"date_from": past_day}).json()["total"] == 2
+
+
+def test_sort_ascending_and_pagination(client, session):
+    for i in range(5):
+        _mk(session, title=f"E{i}", start=NOW + timedelta(days=i + 1))
+
+    body = client.get("/api/events", params={"limit": 2, "offset": 0}).json()
+    assert body["total"] == 5  # total reflects all matches, not the page
+    assert [it["title"] for it in body["items"]] == ["E0", "E1"]  # ascending by start
+
+    page2 = client.get("/api/events", params={"limit": 2, "offset": 2}).json()
+    assert [it["title"] for it in page2["items"]] == ["E2", "E3"]
+
+
+def test_limit_capped_at_100(client):
+    assert client.get("/api/events", params={"limit": 101}).status_code == 422
+
+
+def test_get_event_by_id_and_404(client, session):
+    ev = _mk(session, title="Detail Me")
+    ok = client.get(f"/api/events/{ev.id}")
+    assert ok.status_code == 200
+    assert ok.json()["title"] == "Detail Me"
+    assert set(ok.json().keys()) == EVENT_OUT_FIELDS
+
+    assert client.get("/api/events/99999999").status_code == 404
