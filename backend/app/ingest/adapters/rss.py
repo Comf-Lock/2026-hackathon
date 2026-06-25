@@ -1,0 +1,156 @@
+"""RSS feed adapter — currently the FRIZZ Würzburg city calendar.
+
+FRIZZ is a broad municipal calendar with no IT category, so this adapter is ``broad=True``: the
+ingestion core applies the keyword gate to drop non-tech entries. feedparser handles the messy
+real-world RSS (encoding, namespaces, date formats); ``parse_rss`` is a pure bytes→records function
+so tests run without network. The event date is taken from the entry's published/updated timestamp
+— FRIZZ stamps calendar items with their event date — falling back to skipping an entry that has no
+usable date at all.
+"""
+from __future__ import annotations
+
+import logging
+from collections.abc import Sequence
+
+import feedparser
+import httpx
+
+from ..base import BaseAdapter
+from ..registry import register
+from ..types import GeoScope, RawEventRecord
+from . import _normalize as N
+
+logger = logging.getLogger("eventradar.ingest.rss")
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "application/rss+xml, application/xml, text/xml, */*;q=0.8",
+}
+_TIMEOUT = httpx.Timeout(20.0)
+
+
+def _entry_tags(entry: object) -> list[str]:
+    raw = getattr(entry, "tags", None) or entry.get("tags", [])  # type: ignore[union-attr]
+    out: list[str] = []
+    for t in raw or []:
+        term = t.get("term") if isinstance(t, dict) else getattr(t, "term", None)
+        if term:
+            out.append(str(term))
+    return out
+
+
+def parse_rss(
+    content: bytes | str,
+    *,
+    source_adapter: str,
+    source_url: str,
+    origin_type: str = "feed",
+    trust_tier: int = 3,
+    default_city: str | None = None,
+    default_organizer: str | None = None,
+    default_tags: list[str] | None = None,
+) -> list[RawEventRecord]:
+    """Parse RSS/Atom content into RawEventRecords. Entries without title/date are skipped."""
+    default_tags = default_tags or []
+    feed = feedparser.parse(content)
+    records: list[RawEventRecord] = []
+
+    for entry in feed.entries:
+        try:
+            title = N.clean_text(entry.get("title"))
+            start = N.from_struct_time(
+                entry.get("published_parsed") or entry.get("updated_parsed")
+            )
+            if not title or start is None:
+                continue
+
+            link = entry.get("link") or source_url
+            summary = N.clean_text(entry.get("summary") or entry.get("description"))
+            ext_id = entry.get("id") or link
+            is_online = N.detect_online(title, summary)
+
+            records.append(
+                RawEventRecord(
+                    source_adapter=source_adapter,
+                    external_id=ext_id,
+                    source_url=link,
+                    origin_type=origin_type,
+                    trust_tier=trust_tier,
+                    title=title,
+                    description=summary,
+                    start=start,
+                    is_online=is_online,
+                    city=None if is_online else default_city,
+                    organizer=default_organizer,
+                    tags=[*default_tags, *_entry_tags(entry)],
+                    url=link,
+                )
+            )
+        except Exception as exc:  # one bad entry must not drop the rest
+            logger.warning("skip RSS entry in %s: %s", source_adapter, exc)
+            continue
+    return records
+
+
+class RSSFeedAdapter(BaseAdapter):
+    """Generic adapter over a single RSS/Atom feed URL."""
+
+    def __init__(
+        self,
+        name: str,
+        url: str,
+        *,
+        broad: bool = True,
+        origin_type: str = "feed",
+        trust_tier: int = 3,
+        default_city: str | None = None,
+        default_organizer: str | None = None,
+        default_tags: list[str] | None = None,
+    ) -> None:
+        self.name = name
+        self.url = url
+        self.broad = broad
+        self.origin_type = origin_type
+        self.trust_tier = trust_tier
+        self.default_city = default_city
+        self.default_organizer = default_organizer
+        self.default_tags = default_tags or []
+
+    async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
+        async with httpx.AsyncClient(
+            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
+        ) as client:
+            try:
+                resp = await client.get(self.url)
+                resp.raise_for_status()
+            except httpx.HTTPError as exc:
+                logger.warning("RSS fetch failed %s: %s", self.url, exc)
+                return []
+        return parse_rss(
+            resp.content,
+            source_adapter=self.name,
+            source_url=self.url,
+            origin_type=self.origin_type,
+            trust_tier=self.trust_tier,
+            default_city=self.default_city,
+            default_organizer=self.default_organizer,
+            default_tags=self.default_tags,
+        )
+
+
+# --- Self-registration -------------------------------------------------------------------------
+register(
+    RSSFeedAdapter(
+        "frizz_wuerzburg",
+        "https://frizz-wuerzburg.de/search/event/veranstaltungskalender/index.rss",
+        broad=True,
+        origin_type="feed",
+        trust_tier=3,
+        default_city="Würzburg",
+        default_organizer="FRIZZ Würzburg",
+        default_tags=["frizz", "stadtkalender"],
+    )
+)
