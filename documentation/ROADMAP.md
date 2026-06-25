@@ -56,6 +56,9 @@ Erste echte Daten im System — und das Pattern, auf dem alle weiteren Quellen a
   - `origin_type = scrape`, niedriger `trust_tier` → später Moderationspflicht (Slice 6)
   - Robustheit: Retries, Rate-Limit, Fehler-Isolation als entkoppelter Worker
 
+→ Detailplan: `plans/event-radar-slice-2.md`
+→ Quellen + Zielschema: `documentation/features/event-sources-mainfranken.md`
+
 ### Slice 3 — Event-Anzeige  ·  ⬜
 Aus Daten wird ein sichtbares Produkt.
 
@@ -80,6 +83,8 @@ Breite Abdeckung ohne Duplikate.
   N Quell-Rows → 1 kanonisches Event, „gefunden auf N Quellen"
 - Redis-Queue-Worker pro Quelle (Retries, Rate-Limit, Fehler-Isolation) —
   entkoppelt vom Hauptprozess
+
+→ Verifizierte Feed-Quellen (ICS/RSS, live geprüft): `documentation/features/event-feeds-verified.md`
 
 ### Slice 6 — Supply & Moderation  ·  ⬜
 Eigenes Angebot besitzen statt nur fremde Kopien — der eigentliche Moat.
