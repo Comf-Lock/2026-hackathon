@@ -1,17 +1,22 @@
 <script setup>
-import { onMounted } from 'vue'
-import { RouterLink, RouterView } from 'vue-router'
+import { computed, onMounted } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 import BrandLogo from './components/BrandLogo.vue'
 import { useAuth } from './composables/useAuth'
 
 const { user, loading, fetchMe, login, logout } = useAuth()
+const route = useRoute()
+
+// The dashboard is a wide (1240px) layout — let the header bar match it so the brand lines
+// up with the content instead of floating in a narrow 680px column.
+const wideHeader = computed(() => route.name === 'dashboard')
 
 onMounted(() => fetchMe())
 </script>
 
 <template>
   <header>
-    <div class="bar">
+    <div class="bar" :class="{ wide: wideHeader }">
       <RouterLink to="/" class="brand">
         <BrandLogo :size="34" />
         <span class="word">Event&nbsp;<span>Radar</span></span>
@@ -54,6 +59,10 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+.bar.wide {
+  max-width: 1240px;
+  padding: 13px 22px;
 }
 .brand {
   display: flex;

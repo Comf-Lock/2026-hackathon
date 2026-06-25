@@ -62,7 +62,8 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
         session.commit()
 
     request.session["user_id"] = user.id
-    return RedirectResponse(url=f"{settings.frontend_url}/profile", status_code=303)
+    # After login the user lands on the dashboard (the post-login home).
+    return RedirectResponse(url=f"{settings.frontend_url}/dashboard", status_code=303)
 
 
 @router.post("/logout")
