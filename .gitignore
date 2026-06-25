@@ -1,0 +1,12 @@
+# AI Tool-specific local symlinks (created by project-setup skill)
+.claude/skills
+.agents/skills
+.gemini/skills
+.cursor/skills
+.workflow/
+.claude/settings.local.json
+.claude/sudo-done
+plugins/project-setup/bin/run-agent-setup.sh
+plugins/project-setup/bin/teardown-onboarding.sh
+plugins/project-setup/workflows/
+_scrape/

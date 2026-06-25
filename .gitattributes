@@ -1,0 +1,5 @@
+# HANDOFF.md ist branch-lokaler Session-State: jeder Branch (Mac-Worktree, X1-master)
+# pflegt seinen eigenen. Bei Merges behält der Branch, auf dem der Merge läuft, seinen
+# eigenen HANDOFF — der Code mergt normal, der HANDOFF nicht.
+# Policy: ~/knowledge/shared/policies/software-agents/mac-worktree-x1-master-split.md
+HANDOFF.md merge=ours

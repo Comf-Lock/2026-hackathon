@@ -1,0 +1,13 @@
+{
+  "name": "project-setup",
+  "version": "1.0.0",
+  "description": "AI tool integration setup for a project — symlinks, scrape buckets, gitignore, and agentuser permissions",
+  "author": {
+    "name": "lars-kohlmorgen"
+  },
+  "skills": "../../skills/",
+  "hooks": "hooks/hooks.json",
+  "experimental": {
+    "monitors": "monitors/monitors.json"
+  }
+}

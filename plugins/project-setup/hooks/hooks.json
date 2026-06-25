@@ -1,0 +1,26 @@
+{
+  "description": "Project-setup plugin hooks — deterministic steps to run at each stage of project setup.",
+  "hooks": [
+    {
+      "name": "pre-setup",
+      "trigger": "before:project-setup",
+      "description": "Ensure .gitignore has AI tool entries before symlinks are created",
+      "scripts": ["bin/setup-gitignore.sh"]
+    },
+    {
+      "name": "setup-core",
+      "trigger": "on:project-setup",
+      "description": "Create AI tool symlinks and _scrape/ bucket structure",
+      "scripts": [
+        "bin/setup-symlinks.sh",
+        "bin/setup-scrape-buckets.sh"
+      ]
+    },
+    {
+      "name": "post-setup",
+      "trigger": "after:project-setup",
+      "description": "Generate sudo block for agentuser permissions (output only, no side effects)",
+      "scripts": ["bin/gen-sudo-block.sh"]
+    }
+  ]
+}

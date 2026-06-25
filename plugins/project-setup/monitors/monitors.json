@@ -1,0 +1,16 @@
+{
+  "description": "Project-setup plugin monitors",
+  "monitors": [
+    {
+      "name": "sudo-done-flag",
+      "description": "Detects when the user has completed the sudo setup for agentuser permissions. Agent can stop reminding about sudo once this flag exists.",
+      "trigger": {
+        "type": "file-exists",
+        "path": ".claude/sudo-done"
+      },
+      "on_detected": {
+        "log": "sudo setup completed — agentuser permissions active for this worktree"
+      }
+    }
+  ]
+}

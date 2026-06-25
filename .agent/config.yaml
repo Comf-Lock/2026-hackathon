@@ -1,0 +1,29 @@
+# client: customer this project belongs to — read by claude-agent-spawn into the
+# agent metadata (heartbeat + hub register), so every platform shows the same name.
+client: zdi
+
+# .agent/config.yaml — Projekt-Konfiguration für Persona-System
+#
+# stack: Pflicht für Developer/QM-Personas mit Stack-Verfeinerung.
+# Wird vom Developer beim ersten Aktivieren vervollständigt (Stack-Discovery-Flow).
+#
+# Naming-Konvention: <primary-framework>[-<secondary>][-<db-layer>]
+# Referenz: ~/knowledge/shared/personas/stacks/README.md
+#
+# Beispiele:
+#   stack: vue-alpine
+#   stack: express-drizzle
+#   stack: vue-alpine-express-drizzle
+#   stack: nextjs-prisma
+#
+# Hybrid-Projekte (separates Frontend/Backend):
+#   stacks:
+#     frontend: vue-alpine
+#     backend: express-drizzle
+
+stack:  # SETZEN — Developer vervollständigt beim ersten Aktivieren
+
+# plugins: Opt-in Plugin-Registry — Plugins aus agent-core/plugins/ die in diesem Projekt aktiv sind.
+# Verfügbare Plugins: project-setup, wiki-engineer
+# Beispiel: plugins: [project-setup]
+plugins: []
