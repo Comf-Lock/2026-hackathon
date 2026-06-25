@@ -1,16 +1,18 @@
 <script setup>
+// Public index (logged out). Header pitch + Google login, then the shared SearchMask + EventList
+// so visitors can browse Mainfranken events without an account. Logged-in users are bounced to
+// /dashboard by the router guard, so this view is only ever seen logged out.
+import { onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
+import { useEventSearch } from '../composables/useEventSearch'
+import SearchMask from '../components/SearchMask.vue'
+import EventList from '../components/EventList.vue'
 
-// Public index / login page. Logged-in visitors are redirected to /dashboard by the router
-// guard, so this view is only ever seen logged out — its job is to explain the product and
-// get the user into the Google login.
 const { login } = useAuth()
+const { filters, events, total, loading, search } = useEventSearch()
 
-const features = [
-  { ic: '📡', title: 'Alle Quellen, ein Radar', text: 'Meetup, Eventbrite, THWS, ZDI & Co. — automatisch zusammengeführt statt einzeln durchsuchen.' },
-  { ic: '📍', title: 'Vor deiner Haustür', text: 'Gefiltert auf Mainfranken und deinen Suchradius — Würzburg, Schweinfurt, Aschaffenburg.' },
-  { ic: '🎯', title: 'Auf dich zugeschnitten', text: 'Nach deinen Interessen und Fachgebieten gewichtet — Deep-Tech statt Sales-Pitches.' },
-]
+// Show results immediately — visitors see events before typing anything.
+onMounted(search)
 </script>
 
 <template>
@@ -19,21 +21,20 @@ const features = [
       <span class="kick">Mainfranken Tech-Event-Radar</span>
       <h1>Finde die Tech-Community<br>vor deiner Haustür.</h1>
       <p>
-        Alle IT-Events aus Mainfranken an einem Ort. Melde dich an, um dein
-        personalisiertes Event-Dashboard zu sehen.
+        Alle IT-Events aus Mainfranken an einem Ort — Meetup, Eventbrite, THWS & Co.,
+        automatisch zusammengeführt. Stöbere direkt los oder melde dich an für dein
+        personalisiertes Dashboard.
       </p>
       <div class="cta">
         <button class="btn primary lg" @click="login">Login mit Google</button>
-        <span class="cta-hint">Nach dem Login landest du direkt auf deinem Dashboard.</span>
+        <span class="cta-hint">Mit Login: persönliche Empfehlungen nach Interessen & Wohnort.</span>
       </div>
     </section>
 
-    <section class="features">
-      <div v-for="f in features" :key="f.title" class="feature">
-        <div class="ic">{{ f.ic }}</div>
-        <h3>{{ f.title }}</h3>
-        <p>{{ f.text }}</p>
-      </div>
+    <section class="finder">
+      <h2 class="section-title">Events durchsuchen</h2>
+      <SearchMask v-model="filters" @search="search" />
+      <EventList :events="events" :loading="loading" :total="total" />
     </section>
 
     <p class="hint">Demo-Stand · echte Events kommen über die Connector-Ingestion (Slice 2 ff.).</p>
@@ -41,20 +42,16 @@ const features = [
 </template>
 
 <style scoped>
-.hero { padding: 40px 0 24px; }
+.hero { padding: 40px 0 20px; }
 .hero h1 { font-size: 29px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -.6px; }
-.hero p { margin: 0; color: var(--muted); font-size: 15px; max-width: 30em; }
+.hero p { margin: 0; color: var(--muted); font-size: 15px; max-width: 34em; }
 .hero .kick { display: inline-block; font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 10px; }
 .cta { margin-top: 22px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .btn.lg { padding: 11px 20px; font-size: 14px; }
 .cta-hint { font-size: 12.5px; color: var(--faint); }
 
-.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 26px 0 8px; }
-@media (max-width: 640px) { .features { grid-template-columns: 1fr; } }
-.feature { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
-.feature .ic { font-size: 22px; }
-.feature h3 { margin: 8px 0 5px; font-size: 14.5px; letter-spacing: -.2px; }
-.feature p { margin: 0; font-size: 13px; color: var(--muted); }
+.finder { margin-top: 28px; }
+.section-title { font-size: 15px; margin: 0 0 12px; letter-spacing: -.2px; }
 
 .hint { font-size: 12px; color: var(--faint); text-align: center; margin-top: 30px; }
 </style>
