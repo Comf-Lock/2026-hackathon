@@ -66,7 +66,9 @@ onMounted(async () => {
   await Promise.all([mainSearch(), recoSearch()])
 })
 
-const showDemoHint = computed(() => mainDemo.value || recoDemo.value)
+// `usingDemo` is a stub-only extra, not part of the fixed interface — optional-chain it so
+// swapping in Agent-1's composable (which won't expose it) can't throw.
+const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
 </script>
 
 <template>
