@@ -21,7 +21,12 @@ client: zdi
 #     frontend: vue-alpine
 #     backend: express-drizzle
 
-stack:  # SETZEN — Developer vervollständigt beim ersten Aktivieren
+# Hybrid: Vue-Frontend (wie patent-validator / agent-os-monitor) + FastAPI-Backend (wie mail-ops).
+# Phasiert: Phase 1 Client-only Seed-Demo (Vue+Vite, plain scoped CSS), Phase 2 FastAPI für
+# Login + Connectoren + Intent-Scoring (Claude Haiku via httpx). Karte: Leaflet + OpenStreetMap.
+stacks:
+  frontend: vue-vite
+  backend: python-fastapi
 
 # plugins: Opt-in Plugin-Registry — Plugins aus agent-core/plugins/ die in diesem Projekt aktiv sind.
 # Verfügbare Plugins: project-setup, wiki-engineer
