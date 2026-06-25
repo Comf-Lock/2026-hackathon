@@ -32,30 +32,30 @@ fix auf Mainfranken, aber als Config-Parameter angelegt.
 
 ---
 
-## Phase A — Datenmodell & Schema (`backend/`)
+## Phase A — Datenmodell & Schema (`backend/`)  ·  ✅ erledigt
 
-- [ ] `Event` (kanonisch) als SQLModel — Felder aus `RawEventRecord` (Titel, start/end mit TZ,
-  Beschreibung, is_online, venue/address/city/postal_code, lat/lng als `Geometry(POINT)` via
-  GeoAlchemy2/PostGIS *nullable*, organizer, tags `ARRAY`, url, image_url, price, language)
-- [ ] `EventSource` (Provenance) — `source_adapter, external_id, source_url, fetched_at,
-  raw_payload (JSONB), origin_type, trust_tier`; FK auf `Event`
-- [ ] **Unique-Constraint** `(source_adapter, external_id)` → trägt idempotenten Upsert
-- [ ] Pydantic-DTO `RawEventRecord` (Adapter-Output, entkoppelt vom DB-Modell)
-- [ ] Alembic-Migration (PostGIS-Extension sicherstellen: `CREATE EXTENSION IF NOT EXISTS postgis`)
+- [x] `Event` (kanonisch) als SQLModel — Felder aus `RawEventRecord` (Titel, start/end mit TZ,
+  Beschreibung, is_online, venue/address/city/postal_code, lat/lng, organizer, tags (JSON), url,
+  image_url, price, language). **lat/lng als floats** (nicht PostGIS-`Geometry`) — siehe Abweichung.
+- [x] `EventSource` (Provenance) — `source_adapter, external_id, source_url, fetched_at,
+  raw_payload (JSON), origin_type, trust_tier`; FK auf `Event`
+- [x] **Unique-Constraint** `(source_adapter, external_id)` → trägt idempotenten Upsert
+- [x] Pydantic-DTO `RawEventRecord` (Adapter-Output, entkoppelt vom DB-Modell) + `stable_external_id()`
+- [~] ~~Alembic-Migration~~ **auf Slice 3 verschoben** (zusammen mit PostGIS-Geometry; `create_all`
+  bleibt für Slice 2). Grund: hält SQLite-Testpfad intakt, vermeidet doppelte Migration.
 
-## Phase B — Adapter-Vertrag & Ingestion-Kern
+## Phase B — Adapter-Vertrag & Ingestion-Kern  ·  ✅ erledigt
 
-- [ ] `SourceAdapter`-Protokoll: `name: str` · `fetch(scope: GeoScope) -> Iterable[RawEventRecord]`
-- [ ] `GeoScope`-Config (Pydantic/Settings): `center`, `radius_km`, `keywords[]`,
-  **Default = Mainfranken** (Würzburg-Zentrum + Radius), per `.env`/Config überschreibbar (Ziel global)
-- [ ] **Keyword-/Geo-Filter als Kern-Stufe** (nicht pro Adapter): Titel-Keyword-Match
-  (KI/AI, Hackathon, Web, Daten, Digital, Cyber, Dev, Startup) + Geo-/City-Whitelist
-- [ ] **Idempotenter Upsert** per `(source_adapter, external_id)` — Re-Runs duplizieren nie;
-  bestehende Events updaten, neue anlegen, `fetched_at` stempeln
-- [ ] Ingestion-Run-Funktion: Adapter-Registry → für jede aktive Quelle `fetch()` → Filter → Upsert;
-  pro Quelle Fehler isolieren (eine kaputte Quelle bricht den Lauf nicht ab) + strukturierte Logs
-  (gefunden / nach Filter / neu / aktualisiert / Fehler)
-- [ ] **Saison-Toleranz:** leere Quelle (jährliche Festivals) ist kein Fehler, nur Log-Info
+- [x] `SourceAdapter`-Protokoll (`base.py`): `name`, `broad`, `async fetch(scope) -> Sequence[RawEventRecord]`
+- [x] `GeoScope`-Config (`types.py`) + Scope aus Settings (`config.py`/`core.default_scope`):
+  `center`, `radius_km`, `keywords[]`, `cities[]`, **Default = Mainfranken**, per `.env` überschreibbar
+- [x] **Keyword-/Geo-Filter als Kern-Stufe** (`filters.py`, nicht pro Adapter): Haversine-Umkreis +
+  City-Whitelist + (nur bei `broad`-Quellen) Titel/Tags-Keyword-Gate; Begründung pro Drop fürs Log
+- [x] **Idempotenter Upsert** per `(source_adapter, external_id)` (`core.upsert_event`) — Re-Runs updaten in place
+- [x] Ingestion-Run (`core.run_ingestion`): Registry → `fetch()` → Filter → Upsert; Fehler pro Quelle
+  UND pro Record isoliert; strukturierter `IngestionReport` (found/kept/new/updated/error) + Logs
+- [x] **Saison-Toleranz:** leere Quelle = Log-Info, kein Fehler
+- [x] Smoke verifiziert: Geo-Drop, Keyword-Drop, Fehler-Isolation, Upsert-Idempotenz (Lauf 2 → 0 new / 2 updated)
 
 ## Phase C — Die drei Erst-Adapter (Render-Klassen erproben)
 
