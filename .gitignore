@@ -11,6 +11,11 @@ plugins/project-setup/bin/teardown-onboarding.sh
 plugins/project-setup/workflows/
 _scrape/
 
+# Python / test
+__pycache__/
+*.pyc
+.pytest_cache/
+
 # Node
 node_modules/
 dist/

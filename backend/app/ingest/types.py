@@ -24,7 +24,16 @@ class GeoScope(BaseModel):
     center_label: str = "Würzburg"
     center_lat: float = 49.7913
     center_lng: float = 9.9534
-    radius_km: int = 60
+    # 75 km from Würzburg covers all of Mainfranken incl. the Bayerischer Untermain
+    # (Aschaffenburg ~61 km, Miltenberg ~50 km) while still excluding Nürnberg (~90 km)
+    # and Frankfurt (~85 km).
+    radius_km: int = 75
+
+    # Postal-code prefixes that count as in-scope when a record carries a postal code but no
+    # coordinates. 97 = Unterfranken core (Würzburg/Schweinfurt/Kitzingen/…), 63 = Bayerischer
+    # Untermain (Aschaffenburg/Miltenberg). A coarse structural fallback — distance wins when
+    # coordinates exist.
+    postal_prefixes: list[str] = Field(default_factory=lambda: ["97", "63"])
 
     # Cities that count as "in scope" for adapters/filters that only expose place names.
     cities: list[str] = Field(
