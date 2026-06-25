@@ -11,6 +11,8 @@ Each check returns (passed, reason) so the ingestion run can log *why* something
 """
 from __future__ import annotations
 
+import re
+from functools import lru_cache
 from math import asin, cos, radians, sin, sqrt
 
 from .types import GeoScope, RawEventRecord
@@ -44,11 +46,24 @@ def passes_geo(record: RawEventRecord, scope: GeoScope) -> tuple[bool, str]:
     return True, "geo-unknown"
 
 
+@lru_cache(maxsize=8)
+def _keyword_matcher(keywords: tuple[str, ...]):
+    """Compile one regex per keyword set: short keywords (≤3 chars like ai/ki/ml) match only as
+    whole words — otherwise "ai" hits "rep**ai**r"/"Jam**ai**ka" — while longer ones match as a
+    substring so German compounds ("Daten" in "Datenanalyse") still count.
+    """
+    parts = []
+    for kw in keywords:
+        esc = re.escape(kw)
+        parts.append(rf"\b{esc}\b" if len(kw) <= 3 else esc)
+    return re.compile("|".join(parts), re.IGNORECASE)
+
+
 def passes_keyword(record: RawEventRecord, scope: GeoScope) -> tuple[bool, str]:
-    haystack = " ".join([record.title, *(record.tags or [])]).casefold()
-    hit = next((kw for kw in scope.keywords if kw in haystack), None)
-    if hit:
-        return True, f"kw={hit}"
+    haystack = " ".join([record.title, *(record.tags or [])])
+    m = _keyword_matcher(tuple(scope.keywords)).search(haystack)
+    if m:
+        return True, f"kw={m.group(0).casefold()}"
     return False, "no IT keyword"
 
 
