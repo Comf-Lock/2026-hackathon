@@ -131,7 +131,7 @@ class FeedSource(SQLModel, table=True):
 
     Mirrors a feeds.yaml entry but lives in the DB so feeds can be added via ``POST /api/feeds``
     without a code/config change. At ingest time every ``enabled`` row is turned into a generic
-    ICS/RSS adapter (see ingest/feed_loader.register_db_feeds), so its events flow in with
+    ICS/RSS adapter (see ingest/feed_loader.build_db_feeds), so its events flow in with
     ``source_adapter = name`` and ``origin_type = "feed"``. Unique on ``url`` — the same feed is
     never registered twice.
     """
