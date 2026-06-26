@@ -44,6 +44,8 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Allow access via the Tailscale hostname (on-device PWA testing on the phone).
+    allowedHosts: ['macbook-pro-von-lars.tail7629bb.ts.net', '.ts.net'],
     proxy: {
       // Proxy API calls to the FastAPI backend so the dev frontend is same-origin
       // (session cookie just works, no CORS dance in the browser).
