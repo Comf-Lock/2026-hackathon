@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import select
 
 from app.ingest import adapters
 from app.ingest.adapters import _http, eventbrite_wue, meetup, thws_fiw
@@ -39,14 +39,6 @@ def serve_fixtures(monkeypatch, fixture_text):
         return fixture_text(URL_TO_FIXTURE[url])
 
     monkeypatch.setattr(_http, "fetch_text", fake_fetch)
-
-
-@pytest.fixture
-def session():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as s:
-        yield s
 
 
 def test_three_adapters_register():

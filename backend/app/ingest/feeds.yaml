@@ -55,7 +55,17 @@
   trust_tier: 2
   broad: false
 
-# --- Broad municipal calendar (mixed content → broad=true, keyword gate on) --------------------
+# --- IT-native feed (Würzburg Web Week → broad=false, no keyword gate) --------------------------
+- name: wuerzburg_web_week
+  type: ics
+  url: https://www.meetup.com/Wuerzburg-Web-Week/events/ical/
+  organizer: "Würzburg Web Week"
+  tags: [meetup, web, digital]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: false
+
+# --- Broad calendars (mixed content → broad=true, keyword gate on) ------------------------------
 - name: frizz_wuerzburg
   type: rss
   url: https://frizz-wuerzburg.de/search/event/veranstaltungskalender/index.rss
@@ -65,3 +75,24 @@
   trust_tier: 3
   broad: true
   prefer_title_date: true
+
+# Hackerspace / FabLab — high IT relevance, but a broad calendar (talks, socials, maker nights)
+# so the keyword gate still applies.
+- name: nerd2nerd
+  type: rss
+  url: https://www.nerd2nerd.org/rss.xml
+  organizer: "Nerd2Nerd / FabLab Würzburg"
+  tags: [hackerspace, security, maker, digital]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: true
+
+# University events — very broad (all faculties); the keyword gate keeps only the IT/informatics ones.
+- name: uni_wuerzburg
+  type: rss
+  url: "https://www.uni-wuerzburg.de/index.php?id=197207&type=151"
+  organizer: "Uni Würzburg"
+  tags: [uni]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: true

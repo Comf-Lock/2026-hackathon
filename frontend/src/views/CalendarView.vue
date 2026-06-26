@@ -9,6 +9,7 @@ import {
   WEEKDAYS, weekGrid, monthGrid, yearGrid, rangeFor, periodLabel,
   bucketByDay, ymd, hhmm,
 } from '../calendar/calendarRange'
+import CalendarEventDetail from '../calendar/CalendarEventDetail.vue'
 
 const MODES = [
   { key: 'week', label: 'Woche' },
@@ -25,11 +26,43 @@ const todayKey = ymd(new Date())
 const { filters, events, total, loading, error, load } = useEvents({ limit: 100, paginate: true })
 
 // Point the shared filters at the visible period, then reload through the unified loader.
+// Clear the explicit selection so the new period starts on its own default (next upcoming).
 function reload() {
   const { from, to } = rangeFor(mode.value, cursor.value)
   filters.value = { ...filters.value, dateFrom: from, dateTo: to }
+  selectedId.value = null
   return load()
 }
+
+// --- Detail column selection --------------------------------------------------------------
+// Clicking an event in the grid fills the side column. With nothing clicked we default to the
+// next upcoming event in the loaded period (falling back to the earliest) so the column is never
+// empty when there are events to show.
+const selectedId = ref(null)
+const nowIso = new Date().toISOString()
+
+function selectEvent(e) {
+  selectedId.value = e.id
+}
+
+const byStart = (a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0)
+const defaultEvent = computed(() => {
+  const list = events.value
+  if (!list.length) return null
+  const upcoming = list.filter((e) => (e.start || '') >= nowIso).sort(byStart)
+  return upcoming[0] || [...list].sort(byStart)[0] || null
+})
+const selectedEvent = computed(() => {
+  if (selectedId.value != null) {
+    const hit = events.value.find((e) => e.id === selectedId.value)
+    if (hit) return hit
+  }
+  return defaultEvent.value
+})
+// The column shows the auto-picked default when nothing is (still) explicitly selected.
+const showingDefault = computed(
+  () => selectedId.value == null || !events.value.some((e) => e.id === selectedId.value),
+)
 
 const buckets = computed(() => bucketByDay(events.value))
 const weekCells = computed(() => weekGrid(cursor.value))
@@ -95,63 +128,70 @@ onMounted(reload)
 
     <p v-if="error" class="state err">Konnte Events nicht laden (API nicht erreichbar).</p>
 
-    <!-- WEEK -->
-    <section v-if="mode === 'week'" class="week">
-      <div v-for="c in weekCells" :key="c.key" class="wcol" :class="{ today: c.key === todayKey }">
-        <div class="whead">
-          <span class="wdow">{{ WEEKDAYS[(c.date.getDay() + 6) % 7] }}</span>
-          <span class="wnum">{{ c.date.getDate() }}</span>
-        </div>
-        <div class="wbody">
-          <component
-            :is="e.url ? 'a' : 'div'"
-            v-for="e in eventsOn(c.key)" :key="e.id"
-            class="wev" :class="{ online: e.is_online }"
-            :href="e.url || null" :target="e.url ? '_blank' : null" :rel="e.url ? 'noopener' : null"
-            :title="e.title"
-          >
-            <span class="t">{{ hhmm(e.start) || '–' }}</span>
-            <span class="ti">{{ e.title }}</span>
-          </component>
-          <p v-if="!eventsOn(c.key).length" class="empty">—</p>
-        </div>
-      </div>
-    </section>
+    <!-- Two columns: the calendar grid (wide) + a narrow event-detail column. -->
+    <div class="callayout">
+      <div class="calmain">
+        <!-- WEEK -->
+        <section v-if="mode === 'week'" class="week">
+          <div v-for="c in weekCells" :key="c.key" class="wcol" :class="{ today: c.key === todayKey }">
+            <div class="whead">
+              <span class="wdow">{{ WEEKDAYS[(c.date.getDay() + 6) % 7] }}</span>
+              <span class="wnum">{{ c.date.getDate() }}</span>
+            </div>
+            <div class="wbody">
+              <button
+                v-for="e in eventsOn(c.key)" :key="e.id"
+                type="button"
+                class="wev" :class="{ online: e.is_online, sel: e.id === selectedEvent?.id }"
+                :title="e.title"
+                @click="selectEvent(e)"
+              >
+                <span class="t">{{ hhmm(e.start) || '–' }}</span>
+                <span class="ti">{{ e.title }}</span>
+              </button>
+              <p v-if="!eventsOn(c.key).length" class="empty">—</p>
+            </div>
+          </div>
+        </section>
 
-    <!-- MONTH -->
-    <section v-else-if="mode === 'month'" class="month">
-      <div v-for="d in WEEKDAYS" :key="d" class="dow">{{ d }}</div>
-      <div
-        v-for="c in monthCells" :key="c.key"
-        class="day" :class="{ out: !c.inMonth, today: c.key === todayKey }"
-      >
-        <div class="num">{{ c.date.getDate() }}</div>
-        <component
-          :is="e.url ? 'a' : 'div'"
-          v-for="e in eventsOn(c.key)" :key="e.id"
-          class="chip-ev" :class="{ online: e.is_online }"
-          :href="e.url || null" :target="e.url ? '_blank' : null" :rel="e.url ? 'noopener' : null"
-          :title="`${hhmm(e.start)} · ${e.title}`"
-        >{{ hhmm(e.start) }} {{ e.title }}</component>
-      </div>
-    </section>
-
-    <!-- YEAR -->
-    <section v-else class="year">
-      <div v-for="ym in yearMonths" :key="ym.month" class="mini">
-        <button class="minihead" @click="jumpToMonth(ym.anchor)">{{ ym.name }}</button>
-        <div class="minigrid">
+        <!-- MONTH -->
+        <section v-else-if="mode === 'month'" class="month">
+          <div v-for="d in WEEKDAYS" :key="d" class="dow">{{ d }}</div>
           <div
-            v-for="c in ym.cells" :key="c.key"
-            class="cell" :class="[densityClass(c.key), { out: !c.inMonth, today: c.key === todayKey }]"
-            :title="countOn(c.key) ? `${c.date.getDate()}.${ym.month + 1}. · ${countOn(c.key)} Event(s)` : ''"
-            @click="countOn(c.key) ? jumpToMonth(ym.anchor) : null"
-          >{{ c.inMonth ? c.date.getDate() : '' }}</div>
-        </div>
-      </div>
-    </section>
+            v-for="c in monthCells" :key="c.key"
+            class="day" :class="{ out: !c.inMonth, today: c.key === todayKey }"
+          >
+            <div class="num">{{ c.date.getDate() }}</div>
+            <button
+              v-for="e in eventsOn(c.key)" :key="e.id"
+              type="button"
+              class="chip-ev" :class="{ online: e.is_online, sel: e.id === selectedEvent?.id }"
+              :title="`${hhmm(e.start)} · ${e.title}`"
+              @click="selectEvent(e)"
+            >{{ hhmm(e.start) }} {{ e.title }}</button>
+          </div>
+        </section>
 
-    <p v-if="!loading && !error && total === 0" class="state">Keine Events in diesem Zeitraum.</p>
+        <!-- YEAR -->
+        <section v-else class="year">
+          <div v-for="ym in yearMonths" :key="ym.month" class="mini">
+            <button class="minihead" @click="jumpToMonth(ym.anchor)">{{ ym.name }}</button>
+            <div class="minigrid">
+              <div
+                v-for="c in ym.cells" :key="c.key"
+                class="cell" :class="[densityClass(c.key), { out: !c.inMonth, today: c.key === todayKey }]"
+                :title="countOn(c.key) ? `${c.date.getDate()}.${ym.month + 1}. · ${countOn(c.key)} Event(s)` : ''"
+                @click="countOn(c.key) ? jumpToMonth(ym.anchor) : null"
+              >{{ c.inMonth ? c.date.getDate() : '' }}</div>
+            </div>
+          </div>
+        </section>
+
+        <p v-if="!loading && !error && total === 0" class="state">Keine Events in diesem Zeitraum.</p>
+      </div>
+
+      <CalendarEventDetail class="caldetail" :event="selectedEvent" :is-default="showingDefault" />
+    </div>
   </div>
 </template>
 
@@ -172,6 +212,15 @@ onMounted(reload)
 .state { color: var(--muted); text-align: center; margin-top: 30px; font-size: 14px; }
 .state.err { color: var(--accent); }
 
+/* Two-column layout: calendar grid + narrow sticky detail column. */
+.callayout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.calmain { min-width: 0; }
+.caldetail { position: sticky; top: 16px; }
+@media (max-width: 980px) {
+  .callayout { grid-template-columns: 1fr; }
+  .caldetail { position: static; }
+}
+
 /* WEEK */
 .week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 .wcol { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; min-height: 220px; display: flex; flex-direction: column; }
@@ -180,7 +229,9 @@ onMounted(reload)
 .wdow { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); font-weight: 700; }
 .wnum { font-size: 14px; font-weight: 700; }
 .wbody { padding: 7px; display: flex; flex-direction: column; gap: 5px; }
-.wev { display: flex; flex-direction: column; gap: 1px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 7px; padding: 5px 7px; text-decoration: none; }
+.wev { display: flex; flex-direction: column; gap: 1px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 7px; padding: 5px 7px; text-decoration: none; cursor: pointer; font-family: inherit; text-align: left; width: 100%; }
+.wev:hover { border-color: var(--accent); }
+.wev.sel { background: var(--accent-soft); border-color: var(--accent); box-shadow: var(--shadow); }
 .wev.online { border-left-color: var(--good); }
 .wev .t { font-size: 11px; font-weight: 700; color: var(--accent); }
 .wev.online .t { color: var(--good); }
@@ -194,7 +245,9 @@ onMounted(reload)
 .day.out { opacity: .4; }
 .day.today { border-color: var(--accent); background: var(--accent-soft); }
 .day .num { font-size: 12px; color: var(--muted); font-weight: 700; }
-.chip-ev { font-size: 11px; line-height: 1.25; background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; font-weight: 600; }
+.chip-ev { display: block; width: 100%; box-sizing: border-box; border: 1px solid transparent; font-family: inherit; text-align: left; cursor: pointer; font-size: 11px; line-height: 1.25; background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; font-weight: 600; }
+.chip-ev:hover { border-color: var(--accent); }
+.chip-ev.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); font-weight: 700; }
 .chip-ev.online { background: #e7f5ef; color: var(--good); }
 
 /* YEAR */

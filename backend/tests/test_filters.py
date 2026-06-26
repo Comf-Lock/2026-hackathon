@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.ingest.filters import passes_geo, passes_keyword
+import pytest
+
+from app.ingest.filters import is_relevant, passes_geo, passes_keyword
 from app.ingest.types import GeoScope, RawEventRecord
 
 
@@ -37,6 +39,51 @@ def test_longer_keyword_still_matches_german_compound():
     scope = GeoScope()
     # "daten" should still match inside "Datenanalyse" (substring kept for 4+ char keywords).
     assert passes_keyword(_rec("Praxis-Workshop Datenanalyse"), scope)[0]
+
+
+# --- broadened German IT keyword gate (broad-feed tuning) -------------------------------------
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Programmierkurs für Einsteiger",          # programmier (new)
+        "Einführung in die Informatik",            # informatik (new)
+        "Robotik-Nachmittag für Kinder",           # robotik (new)
+        "Gründerstammtisch Mainfranken",           # gründer (new)
+        "Offener Maker- und Hackerspace",          # maker / hacker (new)
+        "Digital Self Defense",                    # digital
+        "Open Source Linux Install-Party",         # open source / linux (new)
+        "Vortrag: Künstliche Intelligenz im Alltag",  # künstliche intelligenz
+    ],
+)
+def test_it_titles_pass_broadened_gate(title):
+    assert passes_keyword(_rec(title), GeoScope())[0], title
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Yoga im Park",
+        "Single Party",
+        "Lengfelder Bauernmarkt",
+        "6. Sinfoniekonzert",
+        "Dem Leben Ausdruck geben",
+        "Dettelbacher Weinhaltestelle",
+        "Comedy: Ich geh' jetzt bouldern",   # must NOT match via "tech"/"code"/etc.
+    ],
+)
+def test_non_it_titles_stay_dropped(title):
+    # Real FRIZZ city-calendar titles — the gate must keep precision high and reject all of these.
+    assert not passes_keyword(_rec(title), GeoScope())[0], title
+
+
+def test_is_relevant_broad_feed_keeps_it_drops_non_it():
+    """End-to-end gate for a broad calendar: IT title kept, non-IT title dropped (keyword applied)."""
+    scope = GeoScope()
+    kept, _ = is_relevant(_rec("KI-Workshop Würzburg", city="Würzburg"), scope, apply_keyword=True)
+    assert kept
+    dropped, reason = is_relevant(_rec("Yoga im Park", city="Würzburg"), scope, apply_keyword=True)
+    assert not dropped and reason.startswith("keyword:")
 
 
 def test_geo_postal_prefix_fallback():

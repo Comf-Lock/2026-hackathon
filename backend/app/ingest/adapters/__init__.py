@@ -8,3 +8,5 @@ triggers that. Add a new source = add a module + one import line below.
 from . import eventbrite_wue, meetup, thws_fiw  # noqa: F401  (import side-effect: registration)
 # agent-3 adapters (generic ICS calendars + FRIZZ RSS)
 from . import ics, rss  # noqa: F401  (import side-effect: registration)
+# AI Week Mainfranken (festival per-session program, JSON export — single events found nowhere else)
+from . import aiweek  # noqa: F401  (import side-effect: registration)
