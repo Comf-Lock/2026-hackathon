@@ -1,0 +1,112 @@
+"""Event read-side service: serialisation + search/filter/pagination.
+
+The business logic behind ``GET /api/events`` lives here, decoupled from FastAPI so it can be reused
+(the bookmarks router serialises events the same way) and unit-tested without HTTP. The router in
+``events.py`` is a thin shell that only wires query params to these functions.
+
+Tag filtering happens in Python because ``Event.tags`` is a JSON array and membership is not
+portably expressible across SQLite (tests) and Postgres (prod); at regional event volumes loading
+the structurally-filtered rows and intersecting in Python is correct and cheap.
+"""
+from __future__ import annotations
+
+from datetime import date, datetime, time, timezone
+
+from sqlalchemy import func, or_
+from sqlmodel import Session, select
+
+from .models import Event, EventSource
+from .schemas import EventOut, EventSearchResponse, SourceOut
+
+
+def sources_for(session: Session, events: list[Event]) -> dict[int, list[SourceOut]]:
+    """Load provenance rows for a page of events, grouped by event id (one query)."""
+    ids = [e.id for e in events if e.id is not None]
+    if not ids:
+        return {}
+    rows = session.exec(select(EventSource).where(EventSource.event_id.in_(ids))).all()
+    grouped: dict[int, list[SourceOut]] = {}
+    for r in rows:
+        grouped.setdefault(r.event_id, []).append(
+            SourceOut(adapter=r.source_adapter, url=r.source_url, origin_type=r.origin_type)
+        )
+    return grouped
+
+
+def to_event_out(event: Event, sources: list[SourceOut]) -> EventOut:
+    out = EventOut.model_validate(event)
+    out.sources = sources
+    return out
+
+
+def _day_start(d: date) -> datetime:
+    return datetime.combine(d, time.min, tzinfo=timezone.utc)
+
+
+def _day_end(d: date) -> datetime:
+    return datetime.combine(d, time.max, tzinfo=timezone.utc)
+
+
+def _today_start() -> datetime:
+    return datetime.combine(datetime.now(timezone.utc).date(), time.min, tzinfo=timezone.utc)
+
+
+def search_events(
+    session: Session,
+    *,
+    q: str | None = None,
+    city: str | None = None,
+    tag: list[str] | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    is_online: bool | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> EventSearchResponse:
+    """Filtered, paginated event search. Filters are ANDed; results sorted by start ascending."""
+    conditions = []
+    if q:
+        like = f"%{q}%"
+        conditions.append(
+            or_(
+                Event.title.ilike(like),
+                Event.description.ilike(like),
+                Event.organizer.ilike(like),
+            )
+        )
+    if city:
+        conditions.append(Event.city == city)
+    if is_online is not None:
+        conditions.append(Event.is_online == is_online)
+
+    # Default to upcoming events unless the caller pins an explicit lower bound.
+    if date_from is not None:
+        conditions.append(Event.start >= _day_start(date_from))
+    else:
+        conditions.append(Event.start >= _today_start())
+    if date_to is not None:
+        conditions.append(Event.start <= _day_end(date_to))
+
+    ordered = select(Event).where(*conditions).order_by(Event.start.asc())
+
+    if tag:
+        wanted = set(tag)
+        rows = session.exec(ordered).all()
+        matched = [e for e in rows if wanted & set(e.tags or [])]
+        total = len(matched)
+        page = matched[offset : offset + limit]
+    else:
+        total = session.exec(select(func.count()).select_from(Event).where(*conditions)).one()
+        page = session.exec(ordered.offset(offset).limit(limit)).all()
+
+    srcs = sources_for(session, page)
+    items = [to_event_out(e, srcs.get(e.id, [])) for e in page]
+    return EventSearchResponse(total=total, items=items)
+
+
+def get_event(session: Session, event_id: int) -> EventOut | None:
+    """Serialise a single event by id (with its sources), or None if it doesn't exist."""
+    event = session.get(Event, event_id)
+    if event is None:
+        return None
+    return to_event_out(event, sources_for(session, [event]).get(event.id, []))

@@ -63,10 +63,13 @@ class IngestionReport:
         return sum(r.updated for r in self.per_source)
 
 
-_CANONICAL_FIELDS = (
-    "title", "description", "start", "end", "is_online", "venue_name", "address",
-    "city", "postal_code", "lat", "lng", "organizer", "tags", "url", "image_url",
-    "price", "language",
+# The canonical event fields = the fields a source record and the Event row share. Derived from the
+# two schemas (single source of truth) instead of a hand-list, so adding a field in RawEventRecord +
+# Event needs no third edit here. Provenance fields (source_adapter, source_url, …) live on
+# EventSource — not Event — so they fall out of the intersection automatically; likewise Event-only
+# fields (id, enrichment weights, dedup_key, timestamps) are absent from RawEventRecord.
+_CANONICAL_FIELDS = tuple(
+    name for name in RawEventRecord.model_fields if name in Event.model_fields
 )
 
 
