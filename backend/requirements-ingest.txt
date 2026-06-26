@@ -1,0 +1,21 @@
+# Ingest / scraper runtime dependencies.
+#
+# These power the source adapters (ICS/RSS feeds, HTML scraping, SPA rendering) used by the
+# `python -m app.ingest ...` runner — NOT by the bare API request path. Install these wherever the
+# ingestion/scraper job runs:
+#
+#   pip install -r requirements-ingest.txt   (pulls in requirements.txt too)
+#
+# The plain API service installs only requirements.txt.
+#
+# Caveat (2026-06-26): the API currently still imports icalendar/feedparser/beautifulsoup4
+# transitively via app/feeds.py → app.ingest.feed_loader (the /api/feeds router). Until that import
+# is made lazy, an API-only host also needs these three at import time. playwright stays fully lazy.
+-r requirements.txt
+
+beautifulsoup4>=4.12
+# Playwright renders true-SPA sources (slice 2 browser.py harness — deferred adapters only).
+# After install run once: python -m playwright install chromium
+playwright>=1.44
+icalendar>=6.0
+feedparser>=6.0
