@@ -70,9 +70,54 @@ export function visibilityTier(count) {
 // segments always differ in colour.
 const TAG_PALETTE = ['#b8324f', '#d98a2b', '#9c5cab', '#1f9d76', '#2f7bd6', '#c2557a']
 
-// Equal-weight split across an event's tags (3 tags -> thirds). This is the placeholder for the
-// Ground-News-style "intent" bar; Slice 4's LLM intent-scoring later replaces the equal `pct`
-// with real per-tag weights — the rendering stays the same.
+// Canonical IT topic taxonomy — slug -> { label, color }. MUST mirror backend
+// app/enrichment/taxonomy.py (TOPIC_FIELDS): the LLM emits these exact slugs and the bar keys off
+// them, so a stable colour per field stays comparable across every card.
+export const TOPIC_META = {
+  web_frontend: { label: 'Web & Frontend', color: '#2f7bd6' },
+  backend_cloud: { label: 'Backend & Cloud', color: '#1f9d76' },
+  data_ai: { label: 'Data & AI', color: '#b8324f' },
+  devops_platform: { label: 'DevOps & Platform', color: '#0e8a8a' },
+  security: { label: 'Security', color: '#c2557a' },
+  mobile: { label: 'Mobile', color: '#7a5cd0' },
+  embedded_iot: { label: 'Embedded & IoT', color: '#6b8e23' },
+  product_ux: { label: 'Product & UX', color: '#d98a2b' },
+  career_recruiting: { label: 'Career & Recruiting', color: '#9c5cab' },
+  community_networking: { label: 'Community & Networking', color: '#2f9bb3' },
+  business_startup: { label: 'Business & Startup', color: '#cc7a14' },
+  research_academia: { label: 'Research & Academia', color: '#5a6b8c' },
+}
+
+// Intent character axes — slug -> { label, color }. Mirrors backend INTENT_AXES.
+export const INTENT_META = {
+  deep_tech: { label: 'Deep Tech', color: '#b8324f' },
+  recruiting: { label: 'Recruiting', color: '#9c5cab' },
+  vendor_sales: { label: 'Vendor / Sales', color: '#d98a2b' },
+  networking: { label: 'Networking', color: '#1f9d76' },
+}
+
+// Map a {slug: int} weight dict onto display segments, sorted by weight desc. Used for both the
+// topic bar (TOPIC_META) and the intent mix (INTENT_META). Unknown slugs are skipped defensively.
+function segmentsFrom(weights, meta) {
+  if (!weights || typeof weights !== 'object') return []
+  return Object.entries(weights)
+    .filter(([slug, pct]) => meta[slug] && Number(pct) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]))
+    .map(([slug, pct]) => ({ tag: meta[slug].label, color: meta[slug].color, pct: Number(pct) }))
+}
+
+// Real LLM topic distribution for the bar (empty until the event is scored).
+export function topicWeights(event) {
+  return segmentsFrom(event && event.topic_weights, TOPIC_META)
+}
+
+// Real LLM intent distribution (deep-tech / recruiting / sales / networking).
+export function intentMix(event) {
+  return segmentsFrom(event && event.intent_weights, INTENT_META)
+}
+
+// Equal-weight split across an event's tags (3 tags -> thirds). The fallback before an event is
+// LLM-scored: a rough per-tag distribution that reuses the same bar rendering.
 export function tagWeights(tags) {
   const list = (tags || []).slice(0, 6)
   if (!list.length) return []
@@ -80,18 +125,33 @@ export function tagWeights(tags) {
   return list.map((tag, i) => ({ tag, color: TAG_PALETTE[i % TAG_PALETTE.length], pct }))
 }
 
-// Shown when an event has no usable tag-weights yet, so the bar is always visible as a placeholder.
-// Uneven on purpose — it reads as a *distribution* (the future LLM weighting), not equal tags.
+// Shown when an event has neither LLM weights nor usable tags, so the bar is always visible.
+// Uneven on purpose — it reads as a *distribution* (the real LLM weighting), not equal tags.
 export const PLACEHOLDER_WEIGHTS = [
   { tag: 'Schwerpunkt', color: TAG_PALETTE[0], pct: 46 },
   { tag: 'Nebenthema', color: TAG_PALETTE[1], pct: 32 },
   { tag: 'Rand', color: TAG_PALETTE[3], pct: 22 },
 ]
 
-// Real tag-weights when the event has >= 2 tags, otherwise the placeholder distribution.
-// Returns { segments, placeholder } so the card can label the placeholder honestly.
-export function weightBar(tags) {
-  const real = tagWeights(tags)
-  if (real.length > 1) return { segments: real, placeholder: false }
-  return { segments: PLACEHOLDER_WEIGHTS, placeholder: true }
+// Below this LLM confidence the bar is real data but flagged "geschätzt" — honest about a weak read.
+const LOW_CONFIDENCE = 0.45
+
+// The topic-weighting bar for a card. Priority:
+//   1. real LLM topic_weights (kind 'llm'; flagged estimated when confidence is low)
+//   2. tag-derived split when the event has >= 2 tags (kind 'tags')
+//   3. the labelled placeholder distribution (kind 'placeholder')
+// Returns { segments, placeholder, estimated, kind } so the card can label honestly.
+export function weightBar(event) {
+  const ev = event || {}
+  const topics = topicWeights(ev)
+  if (topics.length) {
+    const conf = ev.score_confidence
+    const estimated = typeof conf === 'number' && conf < LOW_CONFIDENCE
+    return { segments: topics, placeholder: false, estimated, kind: 'llm' }
+  }
+  const tagged = tagWeights(ev.tags)
+  if (tagged.length > 1) {
+    return { segments: tagged, placeholder: false, estimated: false, kind: 'tags' }
+  }
+  return { segments: PLACEHOLDER_WEIGHTS, placeholder: true, estimated: false, kind: 'placeholder' }
 }
