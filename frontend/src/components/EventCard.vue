@@ -5,7 +5,7 @@
 // spectrum bar, and a source-reconciliation row with a visibility-tier badge. Colours use the app's
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
 import { computed } from 'vue'
-import { distinctSources, visibilityTier, weightBar } from '../lib/eventDisplay'
+import { distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -33,9 +33,11 @@ const place = computed(() => {
 })
 
 const tags = computed(() => props.event.tags || [])
-// Always renders: real per-tag distribution when the event has >= 2 tags, otherwise a clearly
-// labelled placeholder distribution (real LLM weighting lands in Slice 4).
-const bar = computed(() => weightBar(props.event.tags))
+// Always renders. Priority: real LLM topic_weights → tag-derived split → labelled placeholder.
+// `bar.estimated` flags a low-confidence LLM read; `bar.kind` tells the legend how to label it.
+const bar = computed(() => weightBar(props.event))
+// Real LLM intent distribution (deep-tech / recruiting / sales / networking); empty until scored.
+const intents = computed(() => intentMix(props.event))
 const sources = computed(() => distinctSources(props.event.sources))
 // Visibility magnitude (replaces the old negative "blindspot" framing): more sources → higher tier.
 const tier = computed(() => visibilityTier(sources.value.length))
@@ -77,19 +79,31 @@ function onSave() {
 
     <p v-if="event.description" class="desc">{{ event.description }}</p>
 
-    <!-- Tag-weighting spectrum (Ground-News intent-bar analog; equal split per tag, LLM-weighted later) -->
+    <!-- Topic weighting (Ground-News intent-bar analog). LLM topic_weights when scored, else a
+         tag-derived split, else a clearly labelled placeholder distribution. -->
     <div class="intent">
       <div class="ihead">
         <span class="t">Themen-Gewichtung</span>
         <span v-if="bar.placeholder" class="ph">Platzhalter</span>
+        <span v-else-if="bar.estimated" class="ph est">geschätzt</span>
       </div>
       <div class="bar" :class="{ placeholder: bar.placeholder }">
-        <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="w.tag" />
+        <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
       </div>
-      <div v-if="!bar.placeholder" class="legend">
+      <div v-if="bar.kind === 'llm'" class="legend">
+        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
+      </div>
+      <div v-else-if="bar.kind === 'tags'" class="legend">
         <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }}</span>
       </div>
       <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
+
+      <!-- Intent mix: deep-tech vs recruiting vs sales vs networking (only when LLM-scored) -->
+      <div v-if="intents.length" class="imix">
+        <span v-for="w in intents" :key="w.tag" class="chip" :style="{ borderColor: w.color }">
+          <i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b>
+        </span>
+      </div>
     </div>
 
     <!-- Source reconciliation: how many independent sources list this event (visibility magnitude) -->
@@ -144,6 +158,12 @@ function onSave() {
 .intent .ihead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .intent .ihead .t { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--faint); }
 .intent .ihead .ph { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+.intent .ihead .ph.est { color: #9a6212; background: rgba(217,138,43,.14); border-color: rgba(217,138,43,.4); }
+.legend b { font-weight: 700; color: var(--ink, var(--txt)); }
+.imix { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+.imix .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); background: var(--chip); border: 1px solid var(--line); border-left-width: 3px; border-radius: 6px; padding: 2px 8px; }
+.imix .chip i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.imix .chip b { font-weight: 700; color: var(--ink, var(--txt)); }
 .bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; background: var(--chip); }
 .bar.placeholder { opacity: .5; }
 .bar i { display: block; height: 100%; }

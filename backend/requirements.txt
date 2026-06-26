@@ -13,3 +13,6 @@ itsdangerous>=2.2
 icalendar>=6.0
 feedparser>=6.0
 pyyaml>=6.0
+# Claude-Haiku event weighting (slice 4 enrichment). Optional at runtime: with no
+# ANTHROPIC_API_KEY the scoring step is skipped, but the package must import for `score`.
+anthropic>=0.40

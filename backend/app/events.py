@@ -61,6 +61,11 @@ class EventOut(BaseModel):
     image_url: str | None
     price: str | None
     language: str | None
+    # LLM weighting (slice 4): {slug: int} mixes summing to 100 per axis; empty until scored.
+    # score_confidence is 0..1 — the frontend marks the bar "geschätzt" when it is low/absent.
+    topic_weights: dict = {}
+    intent_weights: dict = {}
+    score_confidence: float | None = None
     sources: list[SourceOut] = []
 
 

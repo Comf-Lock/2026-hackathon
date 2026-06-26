@@ -39,5 +39,11 @@ class Settings(BaseSettings):
     nominatim_user_agent: str = "EventRadar/0.1 (Mainfranken event radar; contact comflock@gmail.com)"
     nominatim_min_interval_s: float = 1.0
 
+    # --- LLM event weighting (slice 4) ---
+    # Empty key disables scoring gracefully (enrichment.score.is_enabled() == False) — the app
+    # still builds and runs, events just keep empty weights and the frontend shows placeholders.
+    anthropic_api_key: str = ""
+    score_model: str = "claude-haiku-4-5"
+
 
 settings = Settings()

@@ -86,6 +86,15 @@ class Event(SQLModel, table=True):
     # EventSource rows. Indexed — the upsert looks events up by it. None only for legacy rows.
     dedup_key: str | None = Field(default=None, index=True)
 
+    # LLM weighting (slice 4) — topic/intent mixes as {slug: int} summing to 100 per axis,
+    # filled by enrichment.score. Empty until scored (or while scoring is disabled). scored_text_hash
+    # is the cache key: re-scoring is skipped while it matches the current text → no redundant spend.
+    topic_weights: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    intent_weights: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    score_confidence: float | None = None
+    score_model: str | None = None
+    scored_text_hash: str | None = None
+
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 
