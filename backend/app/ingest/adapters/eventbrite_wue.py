@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _http
+from . import _normalize as N
 from ._dates import from_iso, from_iso_date
 
 LISTING_URLS = (
@@ -74,6 +75,12 @@ def _event_to_record(ev: dict) -> RawEventRecord | None:
     id_match = _ID_RE.search(url)
     external_id = f"eventbrite:{id_match.group(1)}" if id_match else None
 
+    # JSON-LD usually gives a structured address, but some events only fill streetAddress. Fall back
+    # to deriving the city/postal from the free-text street so they are not lost (helps the map).
+    street = addr.get("streetAddress") or None
+    city = addr.get("addressLocality") or N.pick_city(street, GeoScope().cities, None)
+    postal = addr.get("postalCode") or N.extract_postal(street)
+
     return RawEventRecord(
         source_adapter="eventbrite_wue",
         external_id=external_id,
@@ -87,9 +94,9 @@ def _event_to_record(ev: dict) -> RawEventRecord | None:
         end=_parse_date(ev.get("endDate")),
         is_online="online" in mode and "offline" not in mode,
         venue_name=(loc.get("name") or None),
-        address=(addr.get("streetAddress") or None),
-        city=(addr.get("addressLocality") or None),
-        postal_code=(addr.get("postalCode") or None),
+        address=street,
+        city=city,
+        postal_code=postal,
         lat=_to_float(geo.get("latitude")),
         lng=_to_float(geo.get("longitude")),
         url=url,

@@ -3,12 +3,17 @@
 Examples:
     python -m app.ingest                           # = `run` — all sources, persisted
     python -m app.ingest list                      # show all registered adapters (incl. feeds)
+    python -m app.ingest run --geocode             # ingest, then backfill missing coordinates
+    python -m app.ingest geocode                   # only geocode stored events lacking lat/lng
     python -m app.ingest run --dry-run             # all sources, no DB write
     python -m app.ingest run --source meetup_wue_data
     python -m app.ingest run --radius-km 80 --center 49.79,9.95
 
 ``list`` shows every registered adapter — code adapters, config feeds (feeds.yaml) and enabled DB
 feeds (feed_sources table) — which is how you confirm a newly added feed registered.
+
+``geocode`` (or ``run --geocode``) resolves lat/lng for stored events that have a city/address but
+no coordinates, via Nominatim (≥1 req/s, cached, idempotent — only NULL-lat events are touched).
 
 ``--dry-run`` runs the full pipeline (live fetch → filter → upsert) against a throwaway in-memory
 SQLite database, so the report still shows realistic found/kept/new counts while the configured
@@ -93,9 +98,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("run", "list"),
+        choices=("run", "list", "geocode"),
         default="run",
-        help="'run' (default) ingests; 'list' shows registered adapters incl. feeds",
+        help="'run' (default) ingests; 'list' shows adapters; 'geocode' backfills coordinates",
+    )
+    parser.add_argument(
+        "--geocode",
+        action="store_true",
+        help="after a run, geocode events that have a place but no coordinates",
     )
     parser.add_argument(
         "--source",
@@ -146,6 +156,17 @@ def _list_adapters() -> int:
     return 0
 
 
+def _run_geocode(session: Session) -> None:
+    """Geocode stored events lacking coordinates and print a short report."""
+    from ..geocode import geocode_events
+
+    report = asyncio.run(geocode_events(session))
+    print(
+        f"\nGeocode — scanned={report.scanned} geocoded={report.geocoded} "
+        f"no_hit={report.no_hit} no_query={report.no_query}"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
@@ -156,16 +177,27 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "list":
         return _list_adapters()
 
+    if args.command == "geocode":
+        session = _persistent_session()
+        try:
+            _run_geocode(session)
+        finally:
+            session.close()
+        print(f"\nDatabase: {settings.database_url}")
+        return 0
+
     scope = _build_scope(args)
     names = args.sources or None
 
     session = _memory_session() if args.dry_run else _persistent_session()
     try:
         report = asyncio.run(run_ingestion(session, scope=scope, names=names))
+        _print_report(report, dry_run=args.dry_run)
+        if args.geocode:
+            _run_geocode(session)
     finally:
         session.close()
 
-    _print_report(report, dry_run=args.dry_run)
     if not args.dry_run:
         print(f"\nDatabase: {settings.database_url}")
     return 0

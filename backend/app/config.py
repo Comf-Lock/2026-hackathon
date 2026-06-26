@@ -32,5 +32,12 @@ class Settings(BaseSettings):
     ingest_center_lng: float = 9.9534
     ingest_radius_km: int = 60
 
+    # --- Geocoding (Nominatim / OpenStreetMap) ---
+    # Nominatim's usage policy requires an identifying User-Agent (app + contact) and at most
+    # 1 request/second. Both are configurable so a deployment can set its own contact + endpoint.
+    nominatim_url: str = "https://nominatim.openstreetmap.org/search"
+    nominatim_user_agent: str = "EventRadar/0.1 (Mainfranken event radar; contact comflock@gmail.com)"
+    nominatim_min_interval_s: float = 1.0
+
 
 settings = Settings()
