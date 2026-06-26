@@ -13,8 +13,9 @@ export const EMPTY_FILTERS = { q: '', city: '', tag: '', dateFrom: '', dateTo: '
 // camelCase filter state → the snake_case query string the API contract expects.
 // `center` ({lat,lng}) is the radius-search origin, supplied by useEvents (profile home or
 // geolocation), kept out of the filter object because it isn't a user-typed field. Radius is only
-// sent when BOTH an explicit radius and a resolved centre exist — otherwise we degrade to a normal
-// search (the backend ignores a lone radius_km anyway).
+// sent when the "Umkreis berücksichtigen" toggle (f.useRadius) is on AND an explicit radius and a
+// resolved centre exist — otherwise we degrade to a normal search (the backend ignores a lone
+// radius_km anyway).
 export function toQuery(f, { limit = 20, offset = 0, center = null } = {}) {
   const p = new URLSearchParams()
   if (f.q) p.set('q', f.q)
@@ -23,7 +24,7 @@ export function toQuery(f, { limit = 20, offset = 0, center = null } = {}) {
   if (f.dateFrom) p.set('date_from', f.dateFrom)
   if (f.dateTo) p.set('date_to', f.dateTo)
   if (f.isOnline) p.set('is_online', 'true')
-  if (f.radiusKm && center && center.lat != null && center.lng != null) {
+  if (f.useRadius && f.radiusKm && center && center.lat != null && center.lng != null) {
     p.set('lat', String(center.lat))
     p.set('lng', String(center.lng))
     p.set('radius_km', String(f.radiusKm))
@@ -48,7 +49,9 @@ export function toQuery(f, { limit = 20, offset = 0, center = null } = {}) {
  * @returns {{ filters, events, total, loading, error, load, center, locating, geo, useMyLocation }}
  */
 export function useEvents({ limit = 20, paginate = false, maxPages = 10, geo = false } = {}) {
-  const filters = ref({ ...EMPTY_FILTERS, ...(geo ? { radiusKm: 40 } : {}) })
+  // geo mode adds two radius fields: radiusKm (the slider value) and useRadius (the explicit
+  // "Umkreis berücksichtigen" toggle). useRadius starts off and flips on once a centre resolves.
+  const filters = ref({ ...EMPTY_FILTERS, ...(geo ? { radiusKm: 40, useRadius: false } : {}) })
   const events = ref([])
   const total = ref(0)
   const loading = ref(false)
@@ -67,6 +70,14 @@ export function useEvents({ limit = 20, paginate = false, maxPages = 10, geo = f
       const p = await api('/api/profile') // 401 when logged out → caught, centre stays null
       if (p && typeof p.home_lat === 'number' && typeof p.home_lng === 'number') {
         center.value = { lat: p.home_lat, lng: p.home_lng }
+        // Logged-in default: a resolved profile home turns the radius on and seeds the slider from
+        // the profile's saved radius_km, so the user's own scope applies without re-adjusting.
+        // Replace (not mutate) the filter object so bound SearchMask inputs re-sync.
+        filters.value = {
+          ...filters.value,
+          useRadius: true,
+          ...(typeof p.radius_km === 'number' && p.radius_km > 0 ? { radiusKm: p.radius_km } : {}),
+        }
       }
     } catch {
       /* no profile / logged out → no centre, radius degrades to a normal search */
@@ -80,6 +91,8 @@ export function useEvents({ limit = 20, paginate = false, maxPages = 10, geo = f
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         center.value = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        // A freshly located centre exists → default the radius on (same rule as the profile home).
+        filters.value = { ...filters.value, useRadius: true }
         locating.value = false
         load()
       },
@@ -189,7 +202,7 @@ function filterFixtures(f, center = null) {
     if (f.isOnline && !e.is_online) return false
     if (f.dateFrom && e.start < f.dateFrom) return false
     if (f.dateTo && e.start.slice(0, 10) > f.dateTo) return false
-    if (f.radiusKm && center && center.lat != null && center.lng != null) {
+    if (f.useRadius && f.radiusKm && center && center.lat != null && center.lng != null) {
       if (typeof e.lat !== 'number' || typeof e.lng !== 'number') return false // no coords → excluded
       if (haversineKm(center.lat, center.lng, e.lat, e.lng) > f.radiusKm) return false
     }

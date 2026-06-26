@@ -75,6 +75,10 @@ function reset() {
 
       <!-- Radius (Luftlinie) — only when the host enables geo search -->
       <template v-if="geo">
+        <label class="f check radius-toggle">
+          <input v-model="local.useRadius" type="checkbox" @change="onInput">
+          <span>Umkreis berücksichtigen</span>
+        </label>
         <label class="f radius">
           <span>Umkreis: {{ local.radiusKm }} km</span>
           <input
