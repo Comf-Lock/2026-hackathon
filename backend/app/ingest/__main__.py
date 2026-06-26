@@ -10,6 +10,8 @@ Examples:
     python -m app.ingest run --radius-km 80 --center 49.79,9.95
     python -m app.ingest score                      # LLM-weight events that need (re)scoring
     python -m app.ingest score --all --limit 50     # also re-score already-scored events
+    python -m app.ingest attendance                 # RSVP/attendee counts for not-yet-checked events
+    python -m app.ingest attendance --all           # also re-check events already checked
 
 ``list`` shows every registered adapter — code adapters, config feeds (feeds.yaml) and enabled DB
 feeds (feed_sources table) — which is how you confirm a newly added feed registered.
@@ -100,9 +102,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("run", "list", "geocode", "score"),
+        choices=("run", "list", "geocode", "score", "attendance"),
         default="run",
-        help="'run' ingests; 'list' shows adapters; 'geocode' backfills coordinates; 'score' LLM-weights events",
+        help="'run' ingests; 'list' shows adapters; 'geocode' backfills coordinates; "
+        "'score' LLM-weights events; 'attendance' fills RSVP/attendee counts",
     )
     parser.add_argument(
         "--geocode",
@@ -124,13 +127,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="(score) also re-score events that already have a hash; default = only un/changed",
+        help="(score/attendance) also re-process already-done events; default = only those still pending",
     )
     parser.add_argument(
         "--limit",
         type=int,
         default=None,
-        help="(score) cap the number of events processed this run",
+        help="(score/attendance) cap the number of events processed this run",
     )
     parser.add_argument("--radius-km", type=int, default=None, help="override scope radius in km")
     parser.add_argument(
@@ -218,6 +221,42 @@ def _score_events(*, score_all: bool, limit: int | None) -> int:
     return 0
 
 
+def _attendance_events(*, recheck: bool, limit: int | None) -> int:
+    """Fill RSVP/attendee counts. Default scopes to events not yet checked; ``--all`` re-checks.
+
+    No API key is required for Luma (public) or for Meetup counts already captured during scraping;
+    the Meetup GraphQL fallback is skipped silently when ``MEETUP_API_KEY`` is unset.
+    """
+    from sqlmodel import select
+
+    from ..enrichment import attendance_for_event
+    from ..models import Event
+
+    session = _persistent_session()
+    try:
+        stmt = select(Event).order_by(Event.start.asc())
+        if not recheck:
+            stmt = stmt.where(Event.attendance_checked_at.is_(None))
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        events = session.exec(stmt).all()
+
+        counts: dict[str, int] = {}
+        for event in events:
+            status = attendance_for_event(session, event)
+            counts[status] = counts.get(status, 0) + 1
+
+        keyed = "set" if settings.meetup_api_key else "unset"
+        print(f"\nAttendance report — {len(events)} event(s) considered — MEETUP_API_KEY: {keyed}")
+        print("-" * 44)
+        for status in sorted(counts):
+            print(f"{status:<22}{counts[status]:>6}")
+        print("-" * 44)
+    finally:
+        session.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
@@ -239,6 +278,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "score":
         return _score_events(score_all=args.all, limit=args.limit)
+
+    if args.command == "attendance":
+        return _attendance_events(recheck=args.all, limit=args.limit)
 
     scope = _build_scope(args)
     names = args.sources or None

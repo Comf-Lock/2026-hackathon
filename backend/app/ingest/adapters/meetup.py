@@ -43,6 +43,19 @@ def _resolve(state: dict, value):
     return value or {}
 
 
+def _going_count(ev: dict) -> int | None:
+    """The Meetup RSVP 'going' count, already present in the scraped Apollo state (no API key).
+
+    Shape: ``"going": {"__typename": "GoingRsvpConnection", "totalCount": N}``. We stash it on the
+    record's ``raw_payload`` so the attendance enrichment can read it back without re-fetching."""
+    going = ev.get("going")
+    if isinstance(going, dict):
+        total = going.get("totalCount")
+        if isinstance(total, int) and total >= 0:
+            return total
+    return None
+
+
 def _event_to_record(state: dict, ev: dict) -> RawEventRecord | None:
     title = (ev.get("title") or "").strip()
     when = ev.get("dateTime")
@@ -51,6 +64,8 @@ def _event_to_record(state: dict, ev: dict) -> RawEventRecord | None:
         return None
     if (ev.get("status") or "").upper() in _SKIP_STATUS:
         return None
+
+    going_count = _going_count(ev)
 
     venue = _resolve(state, ev.get("venue"))
     group = _resolve(state, ev.get("group"))
@@ -79,6 +94,7 @@ def _event_to_record(state: dict, ev: dict) -> RawEventRecord | None:
         source_url=url,
         origin_type="scrape",
         trust_tier=3,  # open community source
+        raw_payload={"going_count": going_count} if going_count is not None else {},
         title=title,
         description=(ev.get("description") or None),
         start=from_iso(when),

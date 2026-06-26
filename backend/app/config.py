@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     score_model: str = "claude-haiku-4-5"
 
+    # --- Attendance / RSVP popularity signal ---
+    # Luma exposes its guest_count publicly (no key). Meetup's "going" count is preferred straight
+    # from the already-scraped page; only when that is absent do we fall back to Meetup's GraphQL
+    # API, which needs an OAuth token. Empty key disables just that API fallback — everything else
+    # (Luma + scraped Meetup counts) keeps working with no key.
+    meetup_api_key: str = ""
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}
