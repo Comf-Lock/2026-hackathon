@@ -1,4 +1,6 @@
 """Profile endpoints — read/update the current user's interests, expertise, home + radius."""
+import logging
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -8,6 +10,11 @@ from .db import get_session
 from .geocode import geocode
 from .models import Profile, User
 
+logger = logging.getLogger("eventradar.profile")
+
+# Default "events near me" radius for a fresh profile, in km — mirrors the Profile model default.
+DEFAULT_RADIUS_KM = 40
+
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
@@ -15,7 +22,7 @@ class ProfileIn(BaseModel):
     interests: list[str] = []
     expertise: list[str] = []
     home_label: str | None = None
-    radius_km: int = 40
+    radius_km: int = DEFAULT_RADIUS_KM
 
 
 class ProfileOut(BaseModel):
@@ -34,6 +41,7 @@ def _get_or_create(session: Session, user: User) -> Profile:
         session.add(profile)
         session.commit()
         session.refresh(profile)
+        logger.debug("created empty profile for user id=%s", user.id)
     return profile
 
 
@@ -62,8 +70,10 @@ async def put_profile(
             coords = await geocode(data.home_label)
             if coords:
                 profile.home_lat, profile.home_lng = coords
+                logger.info("geocoded home %r → (%.4f, %.4f)", data.home_label, *coords)
             else:
                 profile.home_lat = profile.home_lng = None
+                logger.warning("could not geocode home label %r — cleared coordinates", data.home_label)
     else:
         profile.home_label = None
         profile.home_lat = profile.home_lng = None

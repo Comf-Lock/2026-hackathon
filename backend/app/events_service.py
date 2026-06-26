@@ -10,6 +10,7 @@ the structurally-filtered rows and intersecting in Python is correct and cheap.
 """
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, time, timezone
 
 from sqlalchemy import case, func, or_
@@ -18,6 +19,13 @@ from sqlmodel import Session, select
 from .geo import haversine_km
 from .models import Event, EventSource
 from .schemas import EventOut, EventSearchResponse, SourceOut
+
+logger = logging.getLogger("eventradar.events")
+
+# Pagination contract — the one place these limits are defined; the router imports them for its
+# query-parameter bounds so "what the API accepts" and "what the service defaults to" never drift.
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
 
 
 def sources_for(session: Session, events: list[Event]) -> dict[int, list[SourceOut]]:
@@ -38,6 +46,20 @@ def to_event_out(event: Event, sources: list[SourceOut]) -> EventOut:
     out = EventOut.model_validate(event)
     out.sources = sources
     return out
+
+
+def _event_matches_tag_terms(event: Event, terms: list[str]) -> bool:
+    """True if ANY tag term occurs (case-insensitive substring) in the event's text or tags.
+
+    The ``tag`` filter is treated as free text, not strict tag-array membership: real events rarely
+    carry clean tags, so a strict match returns nothing. A term matches when it appears in the title,
+    description, organizer, or any of the event's own tags — the same fields ``q`` searches, plus the
+    tag array. Multiple terms are OR-ed so the search stays generous (the pitch demo needs hits).
+    """
+    haystack = " ".join(
+        filter(None, [event.title, event.description, event.organizer, *(event.tags or [])])
+    ).casefold()
+    return any(term in haystack for term in terms)
 
 
 def _day_start(d: date) -> datetime:
@@ -65,7 +87,7 @@ def search_events(
     center_lat: float | None = None,
     center_lng: float | None = None,
     radius_km: float | None = None,
-    limit: int = 20,
+    limit: int = DEFAULT_PAGE_SIZE,
     offset: int = 0,
 ) -> EventSearchResponse:
     """Filtered, paginated event search. Filters are ANDed.
@@ -129,8 +151,9 @@ def search_events(
         # rows and paginating in Python — SQL count/offset can't express these portably.
         rows = session.exec(ordered).all()
         if tag:
-            wanted = set(tag)
-            rows = [e for e in rows if wanted & set(e.tags or [])]
+            terms = [t.casefold() for t in tag if t and t.strip()]
+            if terms:
+                rows = [e for e in rows if _event_matches_tag_terms(e, terms)]
         if radius_active:
             rows = [
                 e
@@ -147,6 +170,11 @@ def search_events(
 
     srcs = sources_for(session, page)
     items = [to_event_out(e, srcs.get(e.id, [])) for e in page]
+    logger.debug(
+        "search_events: total=%d page=%d (offset=%d limit=%d) radius=%s",
+        total, len(items), offset, limit,
+        f"{radius_km}km@({center_lat},{center_lng})" if radius_active else "off",
+    )
     return EventSearchResponse(total=total, items=items)
 
 
