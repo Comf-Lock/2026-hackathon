@@ -50,22 +50,41 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 OAUTH_CALLBACK_PATH = "/api/auth/google/callback"
 
 
-def _derive_redirect_uri(request: Request) -> str:
-    """Build the OAuth callback URL from the *external* host so localhost and the Tailscale HTTPS URL
-    both work without one breaking the other.
+def _forwarded_origin(request: Request) -> str | None:
+    """The external ``scheme://host`` the client actually reached us on, or None for direct access.
 
     Proxy chain: phone → Tailscale Serve (ts.net:443) → Vite (:5173) → Vite /api proxy → backend.
     The Vite proxy uses ``changeOrigin`` → it rewrites ``Host`` to ``localhost:8000``, so the real
     external host only survives in ``X-Forwarded-Host`` (set by Tailscale Serve) and the scheme in
-    ``X-Forwarded-Proto``. Without a forwarded host we fall back to the configured localhost default,
-    so plain local dev is unchanged. Authlib stores this value in the session on
-    ``authorize_redirect`` and re-validates it on the callback, so deriving it once here is enough.
+    ``X-Forwarded-Proto``. No forwarded host → direct localhost access.
     """
     xf_host = request.headers.get("x-forwarded-host")
     if not xf_host:
-        return settings.oauth_redirect_uri
+        return None
     xf_proto = request.headers.get("x-forwarded-proto", "https")
-    return f"{xf_proto}://{xf_host}{OAUTH_CALLBACK_PATH}"
+    return f"{xf_proto}://{xf_host}"
+
+
+def _derive_redirect_uri(request: Request) -> str:
+    """OAuth callback URL on the external host so localhost and the Tailscale HTTPS URL both work.
+
+    Falls back to the configured localhost default for direct access, so plain local dev is
+    unchanged. Authlib stores this value in the session on ``authorize_redirect`` and re-validates it
+    on the callback, so deriving it once here is enough.
+    """
+    origin = _forwarded_origin(request)
+    return f"{origin}{OAUTH_CALLBACK_PATH}" if origin else settings.oauth_redirect_uri
+
+
+def _derive_frontend_base(request: Request) -> str:
+    """Base URL to send the browser to after login.
+
+    On Tailscale everything runs through the one ts.net host, so the frontend base *is* that external
+    origin (``https://…ts.net``). On localhost the callback hits the backend directly on ``:8000``
+    while the frontend lives on ``:5173`` — so the absolute ``frontend_url`` (:5173) is the right
+    fallback, NOT a relative redirect (which would point at ``:8000/dashboard``, a dead page).
+    """
+    return _forwarded_origin(request) or settings.frontend_url
 
 
 @router.get("/google/login")
@@ -105,9 +124,11 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
         logger.info("registered new user id=%s (%s)", user.id, user.email)
 
     request.session["user_id"] = user.id
-    logger.debug("login established for user id=%s", user.id)
-    # After login the user lands on the dashboard (the post-login home).
-    return RedirectResponse(url=f"{settings.frontend_url}/dashboard", status_code=303)
+    # After login the user lands on the dashboard — on the same external host they logged in from,
+    # so an iPhone over Tailscale isn't bounced to an unreachable localhost.
+    frontend_base = _derive_frontend_base(request)
+    logger.debug("login established for user id=%s → %s/dashboard", user.id, frontend_base)
+    return RedirectResponse(url=f"{frontend_base}/dashboard", status_code=303)
 
 
 @router.post("/logout")
