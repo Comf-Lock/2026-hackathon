@@ -17,9 +17,17 @@ from bs4 import BeautifulSoup
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _http
+from . import _normalize as N
 from ._dates import from_german
 
 PAGE_URL = "https://fiw.thws.de/termine/"
+
+# THWS spans Würzburg + Schweinfurt, but the Fakultät Informatik und Wirtschaftsinformatik (FIW)
+# sits at the Würzburg campus (Sanderheinrichsleitenweg 20, 97074 Würzburg). So Würzburg is the
+# correct default city for this calendar — only an event whose label/teaser names Schweinfurt
+# overrides it. This gives every FIW event a city (→ geocodable for the map) without guessing.
+FIW_DEFAULT_CITY = "Würzburg"
+_THWS_CITIES = ("Schweinfurt", "Würzburg")
 
 # "22.06.2026  bis 26.06.2026 : Title" / "25.06.2026, 19:00  bis 20:00 : Title" / "01.10.2026 : Title"
 _LABEL_RE = re.compile(
@@ -69,6 +77,10 @@ def parse_thws_fiw(html: str, page_url: str = PAGE_URL) -> list[RawEventRecord]:
             if p:
                 teaser = p.get_text(" ", strip=True) or None
 
+        # FIW is a Würzburg faculty → default Würzburg, override only if the text names Schweinfurt.
+        city = N.pick_city(f"{title} {teaser or ''}", list(_THWS_CITIES), FIW_DEFAULT_CITY)
+        postal = N.extract_postal(title, teaser)
+
         records.append(
             RawEventRecord(
                 source_adapter="thws_fiw",
@@ -80,6 +92,8 @@ def parse_thws_fiw(html: str, page_url: str = PAGE_URL) -> list[RawEventRecord]:
                 description=teaser,
                 start=start,
                 end=end,
+                city=city,
+                postal_code=postal,
                 organizer="THWS — Fakultät Informatik und Wirtschaftsinformatik",
                 language="de",
                 url=source_url,

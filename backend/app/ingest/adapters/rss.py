@@ -10,6 +10,7 @@ usable date at all.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Sequence
 
 import feedparser
@@ -41,6 +42,16 @@ def _entry_tags(entry: object) -> list[str]:
     return out
 
 
+# Municipal calendars (FRIZZ) append the venue to the title after an " @ ", e.g.
+# "KI-Hackathon - 15.07.2026 09:00 @ ZDI Cube". Capture the trailing venue so the map can label it.
+_VENUE_AT_RE = re.compile(r"\s+@\s+(?P<venue>[^@]+?)\s*$")
+
+
+def _venue_from_title(title: str) -> str | None:
+    m = _VENUE_AT_RE.search(title)
+    return m.group("venue").strip() if m else None
+
+
 def parse_rss(
     content: bytes | str,
     *,
@@ -52,6 +63,7 @@ def parse_rss(
     default_organizer: str | None = None,
     default_tags: list[str] | None = None,
     prefer_title_date: bool = False,
+    cities: list[str] | None = None,
 ) -> list[RawEventRecord]:
     """Parse RSS/Atom content into RawEventRecords. Entries without title/date are skipped.
 
@@ -60,6 +72,7 @@ def parse_rss(
     would be the publish date, which the upcoming-events filter would wrongly drop.
     """
     default_tags = default_tags or []
+    cities = cities if cities is not None else GeoScope().cities
     feed = feedparser.parse(content)
     records: list[RawEventRecord] = []
 
@@ -79,6 +92,12 @@ def parse_rss(
             ext_id = entry.get("id") or link
             is_online = N.detect_online(title, summary)
 
+            # Pull venue/city/postal out of the free text — a city named in the title/summary wins
+            # over the feed default; the default still covers entries that name no city.
+            venue_name = None if is_online else _venue_from_title(title)
+            city = None if is_online else N.pick_city(f"{title} {summary or ''}", cities, default_city)
+            postal = N.extract_postal(title, summary, venue_name)
+
             records.append(
                 RawEventRecord(
                     source_adapter=source_adapter,
@@ -90,7 +109,9 @@ def parse_rss(
                     description=summary,
                     start=start,
                     is_online=is_online,
-                    city=None if is_online else default_city,
+                    venue_name=venue_name,
+                    city=city,
+                    postal_code=postal,
                     organizer=default_organizer,
                     tags=[*default_tags, *_entry_tags(entry)],
                     url=link,
@@ -148,6 +169,7 @@ class RSSFeedAdapter(BaseAdapter):
             default_organizer=self.default_organizer,
             default_tags=self.default_tags,
             prefer_title_date=self.prefer_title_date,
+            cities=scope.cities,
         )
 
 
