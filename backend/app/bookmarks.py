@@ -12,8 +12,9 @@ from sqlmodel import Session, select
 
 from .auth import get_current_user
 from .db import get_session
-from .events import EventOut, sources_for, to_event_out
+from .events_service import sources_for, to_event_out
 from .models import Bookmark, Event, User
+from .schemas import EventOut
 
 router = APIRouter(prefix="/api/bookmarks", tags=["bookmarks"])
 
