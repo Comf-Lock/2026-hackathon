@@ -1,7 +1,7 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
 last_updated: 2026-06-25-master-orchestration
 schema_version: "0.4"
@@ -13,6 +13,8 @@ status: architecture · slice1-deployed · master-orchestration
 > **Adressat:** nächste Session. Bootstrap: `current_task` → `read_first_critical`, dann loslegen.
 
 ## current_task
+
+> **agent/agent-3 Stand 2026-06-26 (ongoing+past events):** Auf rebased master, `agent/agent-3`, 1 Commit (`feat(api): include ongoing+past events by default`), 85 pytest grün. `GET /api/events` zeigt jetzt per Default **alle** DB-Events (vergangen + laufend + kommend) statt nur `start>=heute`. „Nicht-vergangen" = `coalesce(end,start) >= heute` → laufende Mehrtages-Events (AI Week, start 21.6) bleiben sichtbar. Sortierung in SQL: laufend/kommend zuerst (start asc), dann vergangen (start desc). Neuer Opt-out `?upcoming=true` (nur laufend/kommend); `date_from`/`date_to` übersteuern weiterhin. Nur `events_service.py`/`events.py` + Tests angefasst. **Nächster Schritt:** push `agent/agent-3` → Master merged via PR. (Frühere agent-3-Arbeit: LLM-Weighting PR#20; Card-Polish; P0.2 schemas/events_service.)
 
 > **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
 
@@ -38,6 +40,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - Google-OAuth-Client (Client-ID/Secret + Redirect-URIs) — Lars legt ihn an, sobald Login lokal getestet werden soll (Code baut gegen .env-Platzhalter, nicht blockierend)
 - Versioniertes Seed-Skript (backend/seed/) für Demo-Events? — offen, bei Bedarf anlegen
 - Veranstalter-Anmeldung als bewusstes Produktziel mit aufnehmen (vs. erst nur Aggregation)?
+- **Backend-Folge (Agent-3, 2026-06-26):** `/api/events` zeigt per Default „alles in der DB" (auch vergangene Events). Sauberer wäre ein `last_seen`/`is_listed`-Feld am Event (steht das Event noch auf der Quellseite?) statt rein DB-Vorhandensein — dann lassen sich „verschwundene" Events ausblenden. Nicht blockierend.
 
 > **Kaltzone:** decisions_made, Iteration History, Backlog und Landmarks liegen unterhalb dieses Markers — per `Read` vollständig nachladen bei Bedarf.
 <!-- /hot-context -->
