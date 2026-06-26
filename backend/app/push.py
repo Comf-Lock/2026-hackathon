@@ -1,21 +1,29 @@
 """Web Push (Push API / VAPID) — subscription endpoints + a delivery service.
 
-Two halves:
-- HTTP routes (auth-gated): the browser registers its ``PushSubscription`` here and removes it on
-  unsubscribe. Both are idempotent — the endpoint URL is the unique key, so re-subscribing the same
-  browser upserts and unsubscribing something already gone is a no-op.
+Three halves:
+- HTTP routes: the browser fetches the VAPID public key (``GET /vapid-public-key``, no auth — it is
+  public by design), registers/removes its ``PushSubscription`` (auth-gated, idempotent on the endpoint
+  URL), and can trigger a test send to itself (``POST /test``, auth-gated).
 - ``send_push(session, user, payload)``: encrypts + delivers a payload to every subscription the user
   has, via ``pywebpush``. It is a graceful no-op while no VAPID keypair is configured (settings.push_
   enabled is False), and prunes subscriptions the push service reports as gone (404/410). The actual
   network call lives behind the module-level ``webpush`` name so tests mock it without sending.
+- ``generate_vapid_keypair()`` + the ``gen-vapid`` CLI (``python -m app.push gen-vapid``): the *same*
+  code that consumes the keys also mints them, so there is no format drift. The private key is emitted
+  as the raw 32-byte scalar (base64url) — exactly what ``pywebpush`` feeds to ``Vapid.from_string`` —
+  and the public key as the uncompressed 65-byte EC point (base64url), i.e. the ``applicationServerKey``
+  the browser's ``pushManager.subscribe`` expects.
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi import APIRouter, Depends, Response, status
-from pydantic import BaseModel, Field
+from py_vapid import Vapid01
+from pydantic import BaseModel
 from pywebpush import WebPushException, webpush
 from sqlmodel import Session, select
 
@@ -27,6 +35,11 @@ from .models import PushSubscription, User
 logger = logging.getLogger("eventradar.push")
 
 router = APIRouter(prefix="/api/push", tags=["push"])
+
+
+def _b64url(raw: bytes) -> str:
+    """Unpadded URL-safe base64 — the encoding both the VAPID keys and Web Push use throughout."""
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
 
 
 class _Keys(BaseModel):
@@ -45,6 +58,27 @@ class PushUnsubscribeIn(BaseModel):
     """Unsubscribe payload — identifies the subscription to drop by its endpoint."""
 
     endpoint: str
+
+
+class VapidPublicKeyOut(BaseModel):
+    """Public VAPID key the frontend passes as ``applicationServerKey`` to ``pushManager.subscribe``."""
+
+    publicKey: str
+
+
+class TestSendOut(BaseModel):
+    """Result of a test send — how many of the user's subscriptions were delivered to."""
+
+    sent: int
+
+
+@router.get("/vapid-public-key", response_model=VapidPublicKeyOut)
+def get_vapid_public_key() -> VapidPublicKeyOut:
+    """The VAPID public key (applicationServerKey). No auth — it is public by design.
+
+    Empty string while no keypair is configured; the frontend treats that as "push unavailable".
+    """
+    return VapidPublicKeyOut(publicKey=settings.vapid_public_key)
 
 
 @router.post("/subscription", status_code=status.HTTP_204_NO_CONTENT)
@@ -101,6 +135,24 @@ def remove_subscription(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
+@router.post("/test", response_model=TestSendOut)
+def send_test(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> TestSendOut:
+    """Send a test notification to all of the current user's subscriptions. Returns the count sent.
+
+    Reuses ``send_push``, so dead/expired subscriptions (410/404) are pruned as a side effect. Returns
+    ``sent=0`` when push is disabled (no VAPID keypair) or the user has no subscriptions.
+    """
+    sent = send_push(
+        session,
+        user,
+        {"title": "Event Radar", "body": "Push funktioniert ✅", "url": "/"},
+    )
+    return TestSendOut(sent=sent)
+
+
 def send_push(session: Session, user: User, payload: dict) -> int:
     """Deliver ``payload`` (JSON) to every push subscription ``user`` has. Returns the count sent.
 
@@ -140,3 +192,35 @@ def send_push(session: Session, user: User, payload: dict) -> int:
     if sent < len(subs):
         session.commit()  # persist any prunes
     return sent
+
+
+def generate_vapid_keypair() -> tuple[str, str]:
+    """Mint a fresh VAPID keypair as ``(public_key, private_key)`` base64url strings.
+
+    Same formats the app consumes — private = raw 32-byte scalar (what ``pywebpush`` hands to
+    ``Vapid.from_string`` → ``from_raw``); public = uncompressed 65-byte EC point (the browser's
+    ``applicationServerKey``). Generating and consuming in one codebase removes any format mismatch.
+    """
+    vapid = Vapid01()
+    vapid.generate_keys()
+    private_raw = vapid.private_key.private_numbers().private_value.to_bytes(32, "big")
+    public_point = vapid.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
+    return _b64url(public_point), _b64url(private_raw)
+
+
+def _print_vapid_env() -> None:
+    """Print a fresh keypair as ready-to-paste ``.env`` lines (consumed by the gen-vapid CLI)."""
+    public, private = generate_vapid_keypair()
+    print(f"VAPID_PUBLIC_KEY={public}")
+    print(f"VAPID_PRIVATE_KEY={private}")
+    print("VAPID_SUBJECT=mailto:admin@event-radar.local")
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) == 2 and sys.argv[1] == "gen-vapid":
+        _print_vapid_env()
+    else:
+        print("usage: python -m app.push gen-vapid", file=sys.stderr)
+        sys.exit(2)
