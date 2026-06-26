@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent1-radius-search
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent1-radius-search-in-progress
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-1 · **Radius-Suche (Haversine) — Brief gelesen + auf origin/master @ 92ae5f3 rebased, Exploration fertig, Implementierung offen** (Rotation bei 248K vor Code-Start). Diese Session zuvor abgeschlossen & GEPUSHT (Master-PRs offen/teils gemergt): P1.1 Registry (gemergt), AI-Week-Adapter (gemergt PR#33), THWS uni-weiter Scraper (gepusht `79e43b5`; IHK = Playwright-Flag s. open_questions). FERTIGER PLAN für Radius (Details im Journal 2026-06-26 11:57): (1) neuer Helfer `backend/app/geo.py` mit `haversine_km(lat1,lng1,lat2,lng2)`; `ingest/filters.py` importiert ihn statt eigenem `_haversine_km` (keine 2. Distanz-Impl, Brief-Vorgabe). (2) `events_service.search_events`: optionale Params `lat/lng/radius_km` (nur zusammen aktiv) → Python-Postfilter wie der tag-Pfad (Events mit lat/lng ≤ radius behalten, Events OHNE Koordinaten AUSSCHLIESSEN, dann paginieren); ohne Radius unverändert. (3) `events.py`: Query-Params durchreichen. (4) Tests: in/out radius, no-coord ausgeschlossen, ohne Radius unverändert. (5) `SearchMask.vue`: Radius-Input (number 5–100, default 40) + dateFrom mit HEUTE vorausfüllen (dateTo leer). (6) `useEvents.js` toQuery: radius_km+lat/lng mitgeben; Zentrum eingeloggt=Profil home_lat/home_lng (/api/profile), sonst graceful (kein Zentrum→kein Radius-Filter). GRENZEN: nur events_service/events.py + geo.py + SearchMask.vue + useEvents.js — NICHT EventCard/eventDisplay (Agent-3), ProfileView/profile.py (Agent-3), feeds.yaml (Agent-5), andere Adapter. **Nächster Schritt:** Plan (1)–(6) umsetzen, `pytest` + `vite build` grün, committen (`feat: radius search (haversine) + searchmask radius input`), Journal, push origin agent/agent-1, Brief `task-radius-search.md` → `_scrape/processed/`, Master macht PR.
 
 ## active_plans
 
@@ -38,6 +36,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - Google-OAuth-Client (Client-ID/Secret + Redirect-URIs) — Lars legt ihn an, sobald Login lokal getestet werden soll (Code baut gegen .env-Platzhalter, nicht blockierend)
 - Versioniertes Seed-Skript (backend/seed/) für Demo-Events? — offen, bei Bedarf anlegen
 - Veranstalter-Anmeldung als bewusstes Produktziel mit aufnehmen (vs. erst nur Aggregation)?
+- IHK Würzburg-Schweinfurt braucht Playwright (Master: playwright install). wuerzburg.ihk.de/veranstaltungen rendert Events client-seitig via sweap.io-SPA (data-account-id b7c34338-…, 0 Events im statischen HTML). sweap-API /api/webclient/v1/registration-pages braucht overview_ids die nicht aus account-id auflösbar waren. → ihk_wue-Adapter erst nach playwright install.
 
 > **Kaltzone:** decisions_made, Iteration History, Backlog und Landmarks liegen unterhalb dieses Markers — per `Read` vollständig nachladen bei Bedarf.
 <!-- /hot-context -->
@@ -57,6 +56,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent1-adapters+radius · P1.1-Registry + AI-Week-Adapter + THWS-uni-Scraper gebaut/gepusht (IHK=Playwright-Flag); Radius-Suche-Brief rebased + Exploration+Plan fertig, Implementierung offen (Rotation bei 248K)
 
 ## backlog
 
