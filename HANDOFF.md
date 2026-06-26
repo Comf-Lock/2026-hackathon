@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent-2-visibility-dedup-plan
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: agent-2 · visibility-dedup · planned
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**AGENT-2 (Branch agent/agent-2) — Sichtbarkeit: Cross-Source-Dedup + Reframe.** Auftrag: _scrape/inbox/task-visibility-dedup.md. agent/agent-2 wurde auf origin/master rebased (master hat jetzt Rich-Card, Bookmarks, Feed-Kanal, lib/eventDisplay.js; searchKit.js zeigt auf Agent-1s ECHTE Komponenten). Vollständiger, präziser Umsetzungsplan liegt im Journal _scrape/.session/journal-2026-06-26.md (Eintrag 09:26). Umsetzung NOCH NICHT begonnen (Rotation an Lese/Plan-Grenze). **Nächster Schritt:** Plan abarbeiten — TEIL A Backend: NEU backend/app/ingest/dedup.py (reine Funktionen normalize_title/normalize_location/event_fingerprint/record_fingerprint; lowercase+Akzente-strip+Füllwörter-raus, fp=sha256(normtitle|start.date|location)); Event.dedup_key-Spalte (indexed); core.upsert_event um Fingerprint-Merge erweitern ((source,extid)-Check bleibt erste Idempotenz-Linie; danach per dedup_key bestehendes Event suchen -> neue EventSource anhängen + fehlende Felder füllen, sonst neues Event); NEU tests/test_dedup.py (2 Quellen gleicher fp -> 1 Event/2 Sources, Re-Run idempotent, anderes Datum -> getrennt); pytest grün; commit 'feat(ingest): cross-source dedup'. TEIL B Frontend: eventDisplay.visibilityTier(count); EventCard Stufen-Badge (1=Exklusiv gelistet, 2-3=Mehrfach gelistet·N, 4+=Hohe Sichtbarkeit·N) statt Blindspot, amber+⚡ raus, Header 'Sichtbarkeit · N Quellen'; DashboardView blindspotEvents->exclusiveEvents + Rail positiv; vite build grün; commit 'feat(ui): visibility tiers'. Dann push agent/agent-2 + HANDOFF + Brief nach _scrape/processed/. Master merged via PR (master protected). Verifikation: 'PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests' + 'npm run build --prefix frontend'.
 
 ## active_plans
 
@@ -57,6 +55,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent-2 visibility-dedup-plan · auf origin/master rebased, Brief + relevanten Code analysiert, präzisen Umsetzungsplan (Cross-Source-Dedup Backend + Sichtbarkeits-Reframe Frontend) im Journal fixiert; Umsetzung folgt
 
 ## backlog
 
