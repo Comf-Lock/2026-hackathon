@@ -81,6 +81,11 @@ class Event(SQLModel, table=True):
     price: str | None = None
     language: str | None = None
 
+    # Cross-source dedup fingerprint (ingest.dedup.event_fingerprint): events sharing this key are
+    # the same real-world event seen on different sources and are merged into one Event with several
+    # EventSource rows. Indexed — the upsert looks events up by it. None only for legacy rows.
+    dedup_key: str | None = Field(default=None, index=True)
+
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 

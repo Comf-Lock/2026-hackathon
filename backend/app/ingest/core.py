@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..models import Event, EventSource
+from .dedup import record_fingerprint
 from .feed_loader import register_db_feeds
 from .filters import is_relevant
 from .registry import get_adapters
@@ -74,38 +75,20 @@ def _apply_record(event: Event, record: RawEventRecord) -> None:
         setattr(event, f, getattr(record, f))
 
 
-def upsert_event(session: Session, record: RawEventRecord) -> bool:
-    """Upsert one record. Returns True if a new Event was created, False if an existing one updated.
+def _fill_missing(event: Event, record: RawEventRecord) -> None:
+    """Backfill only the canonical fields that are still empty on a merged Event — never clobber.
 
-    Idempotency key is (source_adapter, external_id) on EventSource. Caller commits.
-    """
-    ext_id = record.stable_external_id()
-    fetched = record.fetched_at or _utcnow()
+    Used when a second source merges into an existing Event: the first source stays canonical, the
+    new one only contributes fields the first one lacked (e.g. an image_url, a city)."""
+    for f in _CANONICAL_FIELDS:
+        if not getattr(event, f, None):
+            new_val = getattr(record, f)
+            if new_val:
+                setattr(event, f, new_val)
 
-    src = session.exec(
-        select(EventSource).where(
-            EventSource.source_adapter == record.source_adapter,
-            EventSource.external_id == ext_id,
-        )
-    ).first()
 
-    if src is not None:
-        event = session.get(Event, src.event_id)
-        _apply_record(event, record)
-        event.updated_at = fetched
-        src.source_url = record.source_url
-        src.fetched_at = fetched
-        src.origin_type = record.origin_type
-        src.trust_tier = record.trust_tier
-        src.raw_payload = record.raw_payload
-        session.add(event)
-        session.add(src)
-        return False
-
-    event = Event()
-    _apply_record(event, record)
-    session.add(event)
-    session.flush()  # assign event.id for the FK
+def _attach_source(session: Session, event: Event, record: RawEventRecord, ext_id: str,
+                   fetched: datetime) -> None:
     session.add(
         EventSource(
             event_id=event.id,
@@ -118,6 +101,61 @@ def upsert_event(session: Session, record: RawEventRecord) -> bool:
             raw_payload=record.raw_payload,
         )
     )
+
+
+def upsert_event(session: Session, record: RawEventRecord) -> bool:
+    """Upsert one record. Returns True if a new Event was created, False if an existing one updated.
+
+    Two idempotency lines, in order:
+      1. (source_adapter, external_id) on EventSource — same record from the same source → refresh
+         in place. Hard guarantee that a re-run never duplicates.
+      2. dedup_key (cross-source fingerprint) on Event — the same real-world event from a *different*
+         source → attach a new EventSource to the existing Event and backfill missing fields, so
+         EventOut.sources reports N sources. Precision-first: only a fingerprint match merges.
+
+    Caller commits.
+    """
+    ext_id = record.stable_external_id()
+    fetched = record.fetched_at or _utcnow()
+    dkey = record_fingerprint(record)
+
+    # Line 1: same source + same external id → refresh in place.
+    src = session.exec(
+        select(EventSource).where(
+            EventSource.source_adapter == record.source_adapter,
+            EventSource.external_id == ext_id,
+        )
+    ).first()
+
+    if src is not None:
+        event = session.get(Event, src.event_id)
+        _apply_record(event, record)
+        event.dedup_key = dkey
+        event.updated_at = fetched
+        src.source_url = record.source_url
+        src.fetched_at = fetched
+        src.origin_type = record.origin_type
+        src.trust_tier = record.trust_tier
+        src.raw_payload = record.raw_payload
+        session.add(event)
+        session.add(src)
+        return False
+
+    # Line 2: a different source describing the same event (same fingerprint) → merge.
+    existing = session.exec(select(Event).where(Event.dedup_key == dkey)).first()
+    if existing is not None:
+        _fill_missing(existing, record)
+        existing.updated_at = fetched
+        session.add(existing)
+        _attach_source(session, existing, record, ext_id, fetched)
+        return False
+
+    # No match anywhere → new canonical Event + its first source.
+    event = Event(dedup_key=dkey)
+    _apply_record(event, record)
+    session.add(event)
+    session.flush()  # assign event.id for the FK
+    _attach_source(session, event, record, ext_id, fetched)
     return True
 
 

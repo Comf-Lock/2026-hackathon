@@ -2,10 +2,10 @@
 // Renders one canonical event (the API contract's EventOut). Source-agnostic and presentational;
 // owned here, reused identically by the public index and the dashboard. Layout adapts the
 // Ground-News-style mockup (prototype/dashboard.html): tags + optional rating, a tag-weighting
-// spectrum bar, and a source-reconciliation row with a blindspot badge. Colours use the app's
+// spectrum bar, and a source-reconciliation row with a visibility-tier badge. Colours use the app's
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
 import { computed } from 'vue'
-import { distinctSources, weightBar } from '../lib/eventDisplay'
+import { distinctSources, visibilityTier, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -37,7 +37,8 @@ const tags = computed(() => props.event.tags || [])
 // labelled placeholder distribution (real LLM weighting lands in Slice 4).
 const bar = computed(() => weightBar(props.event.tags))
 const sources = computed(() => distinctSources(props.event.sources))
-const isBlindspot = computed(() => sources.value.length === 1)
+// Visibility magnitude (replaces the old negative "blindspot" framing): more sources → higher tier.
+const tier = computed(() => visibilityTier(sources.value.length))
 const rating = computed(() => props.event.rating || null)
 
 function onSave() {
@@ -91,9 +92,9 @@ function onSave() {
       <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
     </div>
 
-    <!-- Source reconciliation: where this event was found during scraping -->
+    <!-- Source reconciliation: how many independent sources list this event (visibility magnitude) -->
     <div v-if="sources.length" class="sources">
-      <span class="lab">Quellen-Abgleich ({{ sources.length }})</span>
+      <span class="lab">Sichtbarkeit · {{ sources.length }} Quellen</span>
       <a
         v-for="s in sources"
         :key="s.label"
@@ -104,7 +105,7 @@ function onSave() {
       >
         <span class="ic" :style="{ background: s.color }">{{ s.letter }}</span>{{ s.label }}
       </a>
-      <span v-if="isBlindspot" class="blindspot">⚡ Blindspot · nur 1 Quelle</span>
+      <span class="tier" :class="tier.key" :title="tier.tooltip">{{ tier.badge }}</span>
     </div>
 
     <div class="actions">
@@ -155,7 +156,11 @@ function onSave() {
 .src { display: flex; align-items: center; gap: 6px; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 4px 9px; font-size: 12px; color: inherit; text-decoration: none; }
 .src:hover { border-color: #d9d3c8; }
 .src .ic { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; font-weight: 700; font-size: 10px; color: #fff; }
-.blindspot { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: #9a6212; background: rgba(217,138,43,.14); border: 1px solid rgba(217,138,43,.4); border-radius: 8px; padding: 4px 10px; }
+/* Visibility tier — neutral/positive, grows more prominent with the tier (never a warning). */
+.tier { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; border-radius: 8px; padding: 4px 10px; white-space: nowrap; }
+.tier.exclusive { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent); }
+.tier.multi { color: var(--good, #1f9d76); background: rgba(31,157,118,.12); border: 1px solid rgba(31,157,118,.4); }
+.tier.high { color: #fff; background: var(--good, #1f9d76); border: 1px solid var(--good, #1f9d76); }
 
 .actions { display: flex; gap: 10px; margin-top: 16px; }
 .btn { text-align: center; border-radius: 9px; padding: 9px 14px; font-weight: 600; cursor: pointer; font-size: 13px; border: 1px solid transparent; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
