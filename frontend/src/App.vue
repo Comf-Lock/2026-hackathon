@@ -8,9 +8,12 @@ const { user, loading, fetchMe, login, logout } = useAuth()
 const route = useRoute()
 const router = useRouter()
 
-// Dashboard, landing, calendar and map all use the wide (1240px) shell so content lines up under
-// the header bar in every view.
-const wideHeader = computed(() => ['dashboard', 'landing', 'calendar', 'map'].includes(route.name))
+// Every primary view (dashboard, landing, calendar, map AND profile) uses the wide (1240px) shell,
+// so the header bar — logo + tabs — stays at the exact same position across all of them and never
+// jumps when navigating (the profile route in particular shares the others' width).
+const wideHeader = computed(() =>
+  ['dashboard', 'landing', 'calendar', 'map', 'profile'].includes(route.name),
+)
 
 // "Suche" points logged-in users at their dashboard, visitors at the public index.
 const searchTarget = computed(() => (user.value ? '/dashboard' : '/'))

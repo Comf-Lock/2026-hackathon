@@ -33,8 +33,14 @@ THIN_TEXT_MIN = 120
 # An axis weight below this (after the LLM's own 0..100 estimate) is treated as noise and dropped.
 NEAR_ZERO = 2.0
 
-# Hosted-model id — newest Haiku. Structured outputs supported; no effort/thinking params.
-DEFAULT_SCORE_MODEL = "claude-haiku-4-5"
+# Each axis (topics, intents) is renormalised to sum to exactly this — the bar reads as percentages.
+AXIS_SUM = 100
+
+# Token cap for the structured-output call. The JSON payload is small; this is generous headroom.
+MAX_OUTPUT_TOKENS = 1024
+
+# Evidence is a short quoted phrase, not prose — trim so the stored value stays bounded.
+EVIDENCE_MAX_LEN = 280
 
 _SYSTEM_PROMPT = (
     "You classify tech-event descriptions for an IT event radar in Mainfranken, Germany. "
@@ -137,7 +143,7 @@ def _normalize(raw: dict) -> dict:
     evidence = raw.get("evidence") or ""
     if not isinstance(evidence, str):
         evidence = str(evidence)
-    evidence = evidence.strip()[:280]
+    evidence = evidence.strip()[:EVIDENCE_MAX_LEN]
 
     return {
         "topic_weights": topic_weights,
@@ -173,10 +179,10 @@ def _normalize_axis(items: object, key: str, allowed: tuple[str, ...]) -> dict[s
     if total <= 0:
         return {}
 
-    # Scale to 100 and round; fix rounding drift by dumping the remainder on the largest entry.
-    scaled = {slug: w / total * 100 for slug, w in collected.items()}
+    # Scale to AXIS_SUM and round; fix rounding drift by dumping the remainder on the largest entry.
+    scaled = {slug: w / total * AXIS_SUM for slug, w in collected.items()}
     rounded = {slug: int(round(w)) for slug, w in scaled.items()}
-    drift = 100 - sum(rounded.values())
+    drift = AXIS_SUM - sum(rounded.values())
     if drift and rounded:
         biggest = max(rounded, key=lambda s: scaled[s])
         rounded[biggest] += drift
@@ -194,7 +200,7 @@ def _call_llm(text: str) -> dict:
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     response = client.messages.create(
         model=settings.score_model,
-        max_tokens=1024,
+        max_tokens=MAX_OUTPUT_TOKENS,
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": text}],
         output_config={"format": {"type": "json_schema", "schema": _output_schema()}},
