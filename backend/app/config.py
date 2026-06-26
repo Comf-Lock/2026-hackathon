@@ -5,20 +5,30 @@ without a real client; Lars fills in the real values in .env when login is teste
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Insecure dev defaults, named so the startup secrets-guard can compare against the *same*
+# literals the fields default to — no drift between "what we ship" and "what we warn about".
+DEV_SESSION_SECRET = "dev-insecure-session-secret-change-me"
+DEV_GOOGLE_CLIENT_ID = "PLACEHOLDER_GOOGLE_CLIENT_ID"
+DEV_GOOGLE_CLIENT_SECRET = "PLACEHOLDER_GOOGLE_CLIENT_SECRET"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # Deployment environment. "production" makes the startup secrets-guard fail-fast instead of
+    # only warning, so a misconfigured prod deploy never boots with dev placeholder secrets.
+    environment: str = "development"
 
     # Database — local default points at the docker-compose postgres on localhost.
     # Inside docker-compose this is overridden to host "db".
     database_url: str = "postgresql+psycopg://eventradar:eventradar@localhost:5432/eventradar"
 
     # Signed session cookie (httpOnly) — change in production.
-    session_secret: str = "dev-insecure-session-secret-change-me"
+    session_secret: str = DEV_SESSION_SECRET
 
     # Google OAuth — placeholders until Lars creates the OAuth client.
-    google_client_id: str = "PLACEHOLDER_GOOGLE_CLIENT_ID"
-    google_client_secret: str = "PLACEHOLDER_GOOGLE_CLIENT_SECRET"
+    google_client_id: str = DEV_GOOGLE_CLIENT_ID
+    google_client_secret: str = DEV_GOOGLE_CLIENT_SECRET
     oauth_redirect_uri: str = "http://localhost:8000/api/auth/google/callback"
 
     # Where to send the browser back to after a successful login.
@@ -44,6 +54,19 @@ class Settings(BaseSettings):
     # still builds and runs, events just keep empty weights and the frontend shows placeholders.
     anthropic_api_key: str = ""
     score_model: str = "claude-haiku-4-5"
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in {"production", "prod"}
+
+    def insecure_defaults(self) -> list[str]:
+        """Names of security-critical settings still left at their insecure dev default."""
+        checks = {
+            "session_secret": DEV_SESSION_SECRET,
+            "google_client_id": DEV_GOOGLE_CLIENT_ID,
+            "google_client_secret": DEV_GOOGLE_CLIENT_SECRET,
+        }
+        return [name for name, dev_default in checks.items() if getattr(self, name) == dev_default]
 
 
 settings = Settings()

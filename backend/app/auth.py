@@ -12,11 +12,23 @@ user id — no token is exposed to the frontend.
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, ConfigDict
 from sqlmodel import Session, select
 
 from .config import settings
 from .db import get_session
 from .models import Profile, User
+
+
+class UserOut(BaseModel):
+    """Public shape of the current user — the JSON contract /api/auth/me serves."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    email: str
+    display_name: str
+    avatar_url: str | None
 
 oauth = OAuth()
 oauth.register(
@@ -85,11 +97,6 @@ def get_current_user(
     return user
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
-    return {
-        "id": user.id,
-        "email": user.email,
-        "display_name": user.display_name,
-        "avatar_url": user.avatar_url,
-    }
+    return user

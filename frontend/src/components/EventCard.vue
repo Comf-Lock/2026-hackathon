@@ -41,8 +41,8 @@ const needsToggle = computed(
 )
 
 const tags = computed(() => props.event.tags || [])
-// Always renders. Priority: real LLM topic_weights → tag-derived split → labelled placeholder.
-// `bar.estimated` flags a low-confidence LLM read; `bar.kind` tells the legend how to label it.
+// Real LLM topic weights only, or null when the event has not been scored (then no bar renders —
+// "either rated or not shown"). `bar.estimated` flags a low-confidence but still real read.
 const bar = computed(() => weightBar(props.event))
 // Real LLM intent distribution (deep-tech / recruiting / sales / networking); empty until scored.
 const intents = computed(() => intentMix(props.event))
@@ -92,24 +92,19 @@ function onSave() {
       </button>
     </template>
 
-    <!-- Topic weighting (Ground-News intent-bar analog). LLM topic_weights when scored, else a
-         tag-derived split, else a clearly labelled placeholder distribution. -->
-    <div class="intent">
+    <!-- Topic weighting (Ground-News intent-bar analog). Only rendered for LLM-scored events with
+         real topic_weights — an unscored event shows no bar at all (no placeholder, no fallback). -->
+    <div v-if="bar" class="intent">
       <div class="ihead">
         <span class="t">Themen-Gewichtung</span>
-        <span v-if="bar.placeholder" class="ph">Platzhalter</span>
-        <span v-else-if="bar.estimated" class="ph est">geschätzt</span>
+        <span v-if="bar.estimated" class="ph est">geschätzt</span>
       </div>
-      <div class="bar" :class="{ placeholder: bar.placeholder }">
+      <div class="bar">
         <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
       </div>
-      <div v-if="bar.kind === 'llm'" class="legend">
+      <div class="legend">
         <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
       </div>
-      <div v-else-if="bar.kind === 'tags'" class="legend">
-        <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }}</span>
-      </div>
-      <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
 
       <!-- Intent mix: deep-tech vs recruiting vs sales vs networking (only when LLM-scored) -->
       <div v-if="intents.length" class="imix">
@@ -183,7 +178,6 @@ function onSave() {
 .imix .chip i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
 .imix .chip b { font-weight: 700; color: var(--ink, var(--txt)); }
 .bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; background: var(--chip); }
-.bar.placeholder { opacity: .5; }
 .bar i { display: block; height: 100%; }
 .legend { display: flex; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }

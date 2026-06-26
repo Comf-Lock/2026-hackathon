@@ -1,11 +1,6 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { api } from '../api'
-import { useAuth } from '../composables/useAuth'
-
-const router = useRouter()
-const { user, fetchMe } = useAuth()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -23,12 +18,7 @@ const interestInput = ref('')
 const expertiseInput = ref('')
 
 onMounted(async () => {
-  await fetchMe()
-  if (!user.value) {
-    // Not logged in — send to landing where the Google login lives.
-    router.replace('/')
-    return
-  }
+  // Auth is enforced by the router guard before this view renders — just load the profile.
   try {
     const p = await api('/api/profile')
     form.interests = p.interests || []
@@ -36,10 +26,6 @@ onMounted(async () => {
     form.home_label = p.home_label || ''
     form.radius_km = p.radius_km ?? 40
   } catch (e) {
-    if (e.status === 401) {
-      router.replace('/')
-      return
-    }
     error.value = 'Profil konnte nicht geladen werden.'
   } finally {
     loading.value = false
