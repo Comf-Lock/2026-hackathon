@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent3-startbahn27-scraper
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent3-startbahn27-scraper
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,11 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
+agent/agent-3 (Backend-Worker). **Scraper #2 Startbahn27 (Schweinfurt) fertig + committet** (`e44211c`, auf rebased origin/master, bereit für Master-PR). `feat(ingest): startbahn27 schweinfurt scraper`. Schließt die Schweinfurt-Lücke (Startup-Ökosystem: BayStartUP, FLIGHT, KI-Lunch-Pitches, Gründer-Events). Umfang exakt brief-konform: **nur** `backend/app/ingest/adapters/startbahn27.py` (neu) + **eine** additive Import-Zeile in `adapters/__init__.py` + `tests/test_startbahn27.py` + `tests/fixtures/startbahn27_month.html`. Statisches TYPO3, kein Playwright. `parse_month(html, year, month)` pur/netzfrei über das Monatsgrid `/<YYYY>/month/<M>` (Monat **nicht** 0-padded — `/month/6`, `/month/06` → 404); `fetch()` crawlt aktuellen + 2 Folgemonate. Other-month-Spillover (`event-calendar__day-other-month`) übersprungen → keine Cross-Page-Dupes. `start` = Event-Datum Mitternacht Europe/Berlin (Uhrzeiten liegen auf Detailseiten — bewusst nur Übersicht + Detail-Link). City-Default Schweinfurt (sonst aus Titel erkannt). `broad=True` → Keyword-Gate im Core. **141 pytest grün.** Live `run --source startbahn27`: found=78 kept=31 (3 Monate). `python -m app.ingest list` zeigt `startbahn27`.
 
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**Nächster Schritt (agent-3):** Kein offener Task. Auf nächsten Master-Brief in `_scrape/inbox/` warten.
+
+> **Hinweis Vorgänger-Task:** Web-Push BACKEND (`6ee7c5f`) ist ebenfalls als agent/agent-3-PR offen — Master muss dort beim Merge die Postgres-Migration `push_subscriptions` ausführen + VAPID-Keys per Relay in `backend/.env` setzen (Details im Commit-Body von `6ee7c5f`).
 
 ## active_plans
 
