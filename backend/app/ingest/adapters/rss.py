@@ -16,7 +16,6 @@ import feedparser
 import httpx
 
 from ..base import BaseAdapter
-from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _normalize as N
 
@@ -152,17 +151,5 @@ class RSSFeedAdapter(BaseAdapter):
         )
 
 
-# --- Self-registration -------------------------------------------------------------------------
-register(
-    RSSFeedAdapter(
-        "frizz_wuerzburg",
-        "https://frizz-wuerzburg.de/search/event/veranstaltungskalender/index.rss",
-        broad=True,
-        origin_type="feed",
-        trust_tier=3,
-        default_city="Würzburg",
-        default_organizer="FRIZZ Würzburg",
-        default_tags=["frizz", "stadtkalender"],
-        prefer_title_date=True,
-    )
-)
+# The FRIZZ RSS feed moved to feeds.yaml (data-driven registration — see ingest/feed_loader.py).
+# This module now only provides the generic RSSFeedAdapter + pure parse_rss; nothing self-registers.

@@ -1,14 +1,23 @@
 """Adapter registry — the core asks here for the adapters to run.
 
-Concrete adapters (slice 2 phase C, package .adapters) register themselves at import time via
-register(). get_adapters() triggers that import lazily, so the core stays decoupled from the
-concrete source modules. Empty until phase C lands its adapters.
+Two registration sources feed it:
+- Code adapters (package .adapters) self-register at import time via register(); _load_adapters()
+  triggers that import lazily so the core stays decoupled from the concrete source modules.
+- Config feeds (ingest/feeds.yaml) are registered as generic ICS/RSS adapters by feed_loader; that
+  load is guarded to read the YAML once.
+
+DB feeds (feed_sources table) are layered on top per ingest run by the core, which has a session.
 """
 from __future__ import annotations
 
+import logging
+
 from .base import SourceAdapter
 
+logger = logging.getLogger("eventradar.ingest.registry")
+
 _REGISTRY: dict[str, SourceAdapter] = {}
+_config_feeds_loaded = False
 
 
 def register(adapter: SourceAdapter) -> SourceAdapter:
@@ -26,8 +35,17 @@ def get_adapters(names: list[str] | None = None) -> list[SourceAdapter]:
 
 
 def _load_adapters() -> None:
-    """Import the adapters package so its modules self-register. No-op if it does not exist yet."""
+    """Self-register code adapters (import side-effect) + config feeds (once). Failures are non-fatal."""
+    global _config_feeds_loaded
     try:
         from . import adapters  # noqa: F401  (import side-effect: registration)
     except ImportError:
         pass
+    if not _config_feeds_loaded:
+        try:
+            from .feed_loader import register_config_feeds
+
+            register_config_feeds()
+        except Exception as exc:  # a broken config must not block the code adapters
+            logger.warning("config feed load failed: %s", exc)
+        _config_feeds_loaded = True

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from . import auth, bookmarks, events, profile
+from . import auth, bookmarks, events, feeds, profile
 from .config import settings
 from .db import init_db
 
@@ -40,6 +40,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(events.router)
 app.include_router(bookmarks.router)
+app.include_router(feeds.router)
 
 
 @app.get("/api/health")

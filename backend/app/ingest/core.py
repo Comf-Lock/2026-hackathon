@@ -16,6 +16,7 @@ from sqlmodel import Session, select
 
 from ..config import settings
 from ..models import Event, EventSource
+from .feed_loader import register_db_feeds
 from .filters import is_relevant
 from .registry import get_adapters
 from .types import GeoScope, RawEventRecord
@@ -128,6 +129,9 @@ async def run_ingestion(
     """Run all (or named) adapters once and persist their relevant events. Never raises per source."""
     scope = scope or default_scope()
     report = IngestionReport(scope_label=scope.center_label)
+    # Warm code + config-feed adapters, then layer enabled DB feeds on top (DB wins on name clash).
+    get_adapters()
+    register_db_feeds(session)
     adapters = get_adapters(names)
     logger.info("ingestion start: scope=%s radius=%dkm adapters=%d",
                 scope.center_label, scope.radius_km, len(adapters))
