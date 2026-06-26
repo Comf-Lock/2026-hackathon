@@ -6,6 +6,8 @@ Examples:
     python -m app.ingest run --dry-run             # all sources, no DB write
     python -m app.ingest run --source meetup_wue_data
     python -m app.ingest run --radius-km 80 --center 49.79,9.95
+    python -m app.ingest score                      # LLM-weight events that need (re)scoring
+    python -m app.ingest score --all --limit 50     # also re-score already-scored events
 
 ``list`` shows every registered adapter — code adapters, config feeds (feeds.yaml) and enabled DB
 feeds (feed_sources table) — which is how you confirm a newly added feed registered.
@@ -93,9 +95,9 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "command",
         nargs="?",
-        choices=("run", "list"),
+        choices=("run", "list", "score"),
         default="run",
-        help="'run' (default) ingests; 'list' shows registered adapters incl. feeds",
+        help="'run' (default) ingests; 'list' shows adapters; 'score' LLM-weights events",
     )
     parser.add_argument(
         "--source",
@@ -108,6 +110,17 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="run the full pipeline but write to a throwaway DB (no real persistence)",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="(score) also re-score events that already have a hash; default = only un/changed",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="(score) cap the number of events processed this run",
     )
     parser.add_argument("--radius-km", type=int, default=None, help="override scope radius in km")
     parser.add_argument(
@@ -146,6 +159,45 @@ def _list_adapters() -> int:
     return 0
 
 
+def _score_events(*, score_all: bool, limit: int | None) -> int:
+    """LLM-weight events. Default scopes to events that still need it (no hash yet); ``--all`` re-scores.
+
+    ``score_event`` itself is idempotent (hash cache + thin-text guard), so even ``--all`` only
+    spends on events whose text actually changed.
+    """
+    from sqlmodel import select
+
+    from ..enrichment import is_enabled, score_event
+    from ..models import Event
+
+    if not is_enabled():
+        print("Scoring disabled: ANTHROPIC_API_KEY is not set — nothing to do.")
+        return 0
+
+    session = _persistent_session()
+    try:
+        stmt = select(Event).order_by(Event.start.asc())
+        if not score_all:
+            stmt = stmt.where(Event.scored_text_hash.is_(None))
+        if limit is not None:
+            stmt = stmt.limit(limit)
+        events = session.exec(stmt).all()
+
+        counts: dict[str, int] = {}
+        for event in events:
+            status = score_event(session, event)
+            counts[status] = counts.get(status, 0) + 1
+
+        print(f"\nScoring report — {len(events)} event(s) considered — model: {settings.score_model}")
+        print("-" * 44)
+        for status in sorted(counts):
+            print(f"{status:<20}{counts[status]:>6}")
+        print("-" * 44)
+    finally:
+        session.close()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
@@ -155,6 +207,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list":
         return _list_adapters()
+
+    if args.command == "score":
+        return _score_events(score_all=args.all, limit=args.limit)
 
     scope = _build_scope(args)
     names = args.sources or None

@@ -208,3 +208,41 @@ def _call_llm(text: str) -> dict:
 def score_text(text: str) -> dict:
     """Score a piece of text → normalised result. Raises on LLM/parse failure (caller isolates)."""
     return _normalize(_call_llm(text))
+
+
+def score_event(session, event) -> str:
+    """Score one Event and persist the weights in place. Returns a short status string.
+
+    Idempotent + cheap on re-runs: the event text is hashed and compared against
+    ``event.scored_text_hash`` — an unchanged text short-circuits before any LLM call. Thin
+    descriptions (< THIN_TEXT_MIN) are skipped so we do not spend on low-signal scrapes. Any LLM
+    or parse failure is swallowed (logged) and reported as ``"error"`` — one bad event never
+    aborts a batch run.
+
+    Status values: ``scored`` | ``skipped:disabled`` | ``skipped:thin`` | ``skipped:cached`` | ``error``.
+    """
+    if not is_enabled():
+        return "skipped:disabled"
+
+    text = build_text(event.title, event.description, event.organizer, event.tags)
+    if len(text) < THIN_TEXT_MIN:
+        return "skipped:thin"
+
+    digest = text_hash(text)
+    if event.scored_text_hash == digest and event.topic_weights:
+        return "skipped:cached"
+
+    try:
+        result = score_text(text)
+    except Exception:  # noqa: BLE001 — isolate: a single failure must not abort the batch
+        logger.warning("scoring failed for event id=%s", getattr(event, "id", "?"), exc_info=True)
+        return "error"
+
+    event.topic_weights = result["topic_weights"]
+    event.intent_weights = result["intent_weights"]
+    event.score_confidence = result["confidence"]
+    event.score_model = settings.score_model
+    event.scored_text_hash = digest
+    session.add(event)
+    session.commit()
+    return "scored"
