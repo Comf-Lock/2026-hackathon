@@ -121,10 +121,6 @@ export function visibilityTier(count) {
   }
 }
 
-// Palette tuned to the Mainfranken accent family — indexed (not hashed) so adjacent bar
-// segments always differ in colour.
-const TAG_PALETTE = ['#b8324f', '#d98a2b', '#9c5cab', '#1f9d76', '#2f7bd6', '#c2557a']
-
 // Canonical IT topic taxonomy — slug -> { label, color }. MUST mirror backend
 // app/enrichment/taxonomy.py (TOPIC_FIELDS): the LLM emits these exact slugs and the bar keys off
 // them, so a stable colour per field stays comparable across every card.
@@ -171,42 +167,18 @@ export function intentMix(event) {
   return segmentsFrom(event && event.intent_weights, INTENT_META)
 }
 
-// Equal-weight split across an event's tags (3 tags -> thirds). The fallback before an event is
-// LLM-scored: a rough per-tag distribution that reuses the same bar rendering.
-export function tagWeights(tags) {
-  const list = (tags || []).slice(0, 6)
-  if (!list.length) return []
-  const pct = 100 / list.length
-  return list.map((tag, i) => ({ tag, color: TAG_PALETTE[i % TAG_PALETTE.length], pct }))
-}
-
-// Shown when an event has neither LLM weights nor usable tags, so the bar is always visible.
-// Uneven on purpose — it reads as a *distribution* (the real LLM weighting), not equal tags.
-export const PLACEHOLDER_WEIGHTS = [
-  { tag: 'Schwerpunkt', color: TAG_PALETTE[0], pct: 46 },
-  { tag: 'Nebenthema', color: TAG_PALETTE[1], pct: 32 },
-  { tag: 'Rand', color: TAG_PALETTE[3], pct: 22 },
-]
-
 // Below this LLM confidence the bar is real data but flagged "geschätzt" — honest about a weak read.
 const LOW_CONFIDENCE = 0.45
 
-// The topic-weighting bar for a card. Priority:
-//   1. real LLM topic_weights (kind 'llm'; flagged estimated when confidence is low)
-//   2. tag-derived split when the event has >= 2 tags (kind 'tags')
-//   3. the labelled placeholder distribution (kind 'placeholder')
-// Returns { segments, placeholder, estimated, kind } so the card can label honestly.
+// The topic-weighting bar for a card — ONLY real LLM topic_weights. There is deliberately no
+// placeholder and no tag-derived fallback: an event that has not been LLM-scored shows no bar at
+// all ("either rated or not shown"). Returns null when there are no real weights, otherwise
+// { segments, estimated } where `estimated` flags a low-confidence (but still real) read.
 export function weightBar(event) {
   const ev = event || {}
   const topics = topicWeights(ev)
-  if (topics.length) {
-    const conf = ev.score_confidence
-    const estimated = typeof conf === 'number' && conf < LOW_CONFIDENCE
-    return { segments: topics, placeholder: false, estimated, kind: 'llm' }
-  }
-  const tagged = tagWeights(ev.tags)
-  if (tagged.length > 1) {
-    return { segments: tagged, placeholder: false, estimated: false, kind: 'tags' }
-  }
-  return { segments: PLACEHOLDER_WEIGHTS, placeholder: true, estimated: false, kind: 'placeholder' }
+  if (!topics.length) return null
+  const conf = ev.score_confidence
+  const estimated = typeof conf === 'number' && conf < LOW_CONFIDENCE
+  return { segments: topics, estimated }
 }
