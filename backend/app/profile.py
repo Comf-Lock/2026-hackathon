@@ -38,7 +38,7 @@ def _get_or_create(session: Session, user: User) -> Profile:
 
 
 @router.get("", response_model=ProfileOut)
-async def get_profile(
+def get_profile(
     user: User = Depends(get_current_user), session: Session = Depends(get_session)
 ):
     return _get_or_create(session, user)
