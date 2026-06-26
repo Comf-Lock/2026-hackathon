@@ -1,26 +1,29 @@
 <script setup>
 // Public map view (logged out + in). Renders events with coordinates as markers on an
-// OpenStreetMap (Leaflet) map. Light, self-contained fetch via the shared api() transport — does
-// NOT touch useEventSearch/EventCard/DashboardView (the unified data layer comes later in the
-// refactor). Neutral CSS pins (divIcon) so we don't depend on Leaflet's bundler-fragile marker
-// images and don't reach into eventDisplay.js for colours.
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+// OpenStreetMap (Leaflet) map. Pulls events through the single useEvents data layer (limit=100, a
+// broad window) and renders the located ones imperatively. Neutral CSS pins (divIcon) so we don't
+// depend on Leaflet's bundler-fragile marker images and don't reach into eventDisplay.js.
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { api } from '../api'
+import { useEvents } from '../composables/useEvents'
 import { MONTHS_SHORT, dayKey, hhmm } from '../calendar/calendarRange'
 
 // Mainfranken / Würzburg as the default focus when there's nothing to fit to.
 const WUERZBURG = [49.7913, 9.9534]
 
-const loading = ref(true)
-const error = ref(null)
-const markerCount = ref(0)
-const noCoordsCount = ref(0)
-const total = ref(0)
+// A broad window so the map shows everything geocoded so far, not just "next 20".
+const { events, total, loading, error, load } = useEvents({ limit: 100 })
+
+const located = computed(() =>
+  events.value.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number'),
+)
+const markerCount = computed(() => located.value.length)
+const noCoordsCount = computed(() => events.value.length - located.value.length)
 
 let map = null
 let mapEl = null
+let markerLayer = null
 
 // TZ-safe (string-slice) date label for the popup — consistent with calendarRange.
 function dateLabel(iso) {
@@ -55,32 +58,20 @@ const pinIcon = L.divIcon({
   popupAnchor: [0, -9],
 })
 
-async function load() {
-  loading.value = true
-  error.value = null
-  try {
-    // Load a broad window so the map shows everything geocoded so far, not just "next 20".
-    const data = await api('/api/events?limit=100')
-    const items = data.items || []
-    total.value = data.total ?? items.length
+// Draw a marker per located event into a dedicated layer (cleared on each render) and fit bounds.
+function renderMarkers() {
+  if (!map) return
+  if (markerLayer) markerLayer.clearLayers()
+  else markerLayer = L.layerGroup().addTo(map)
 
-    const located = items.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number')
-    noCoordsCount.value = items.length - located.length
-    markerCount.value = located.length
-
-    const bounds = []
-    for (const e of located) {
-      const m = L.marker([e.lat, e.lng], { icon: pinIcon }).addTo(map)
-      m.bindPopup(popupHtml(e))
-      bounds.push([e.lat, e.lng])
-    }
-    if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
-  } catch (e) {
-    error.value = e
-    markerCount.value = 0
-  } finally {
-    loading.value = false
+  const bounds = []
+  for (const e of located.value) {
+    const m = L.marker([e.lat, e.lng], { icon: pinIcon })
+    m.bindPopup(popupHtml(e))
+    markerLayer.addLayer(m)
+    bounds.push([e.lat, e.lng])
   }
+  if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
 }
 
 onMounted(async () => {
@@ -90,6 +81,7 @@ onMounted(async () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
   }).addTo(map)
   await load()
+  renderMarkers()
 })
 
 onBeforeUnmount(() => {
