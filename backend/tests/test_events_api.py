@@ -10,7 +10,7 @@ NOW = datetime.now(timezone.utc)
 EVENT_OUT_FIELDS = {
     "id", "title", "description", "start", "end", "is_online", "venue_name",
     "address", "city", "postal_code", "lat", "lng", "organizer", "tags", "url",
-    "image_url", "price", "language",
+    "image_url", "price", "language", "sources",
 }
 
 

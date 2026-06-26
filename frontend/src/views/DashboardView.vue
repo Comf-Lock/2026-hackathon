@@ -13,6 +13,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../api'
 import { useAuth } from '../composables/useAuth'
+import { distinctSources } from '../lib/eventDisplay'
 import { SearchMask, EventList, useEventSearch } from '../dashboard/searchKit'
 
 const { user, fetchMe } = useAuth()
@@ -30,6 +31,41 @@ const {
   filters: recoFilters, events: recoEvents, total: recoTotal,
   loading: recoLoading, usingDemo: recoDemo, search: recoSearch,
 } = useEventSearch()
+
+// Bookmarks ("Merken"): savedIds drives the card button state; savedEvents fills the rail box.
+const savedEvents = ref([])
+const savedIds = computed(() => savedEvents.value.map((e) => e.id))
+
+async function loadBookmarks() {
+  try {
+    savedEvents.value = await api('/api/bookmarks')
+  } catch {
+    savedEvents.value = []
+  }
+}
+
+async function toggleSave(eventId) {
+  const isSaved = savedIds.value.includes(eventId)
+  try {
+    await api(`/api/bookmarks/${eventId}`, { method: isSaved ? 'DELETE' : 'POST' })
+    await loadBookmarks()
+  } catch {
+    /* non-fatal — leave state unchanged */
+  }
+}
+
+const MONTHS = ['JAN', 'FEB', 'MÄR', 'APR', 'MAI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEZ']
+function miniDate(start) {
+  const d = new Date(start)
+  if (Number.isNaN(d.getTime())) return { d: '–', m: '' }
+  return { d: d.getDate(), m: MONTHS[d.getMonth()] }
+}
+
+// Blindspot feed: events found on only one platform. Honest until cross-source dedup (Slice 5)
+// makes multi-source listings real — today most events are single-source.
+const blindspotEvents = computed(() =>
+  mainEvents.value.filter((e) => distinctSources(e.sources).length <= 1).slice(0, 4),
+)
 
 const firstName = computed(() => (user.value?.display_name || '').split(' ')[0] || '')
 const interests = computed(() => profile.value?.interests || [])
@@ -63,7 +99,7 @@ onMounted(async () => {
   if (primaryInterest.value) mainFilters.tag = primaryInterest.value
   if (primaryInterest.value) recoFilters.tag = primaryInterest.value
 
-  await Promise.all([mainSearch(), recoSearch()])
+  await Promise.all([mainSearch(), recoSearch(), loadBookmarks()])
 })
 
 // `usingDemo` is a stub-only extra, not part of the fixed interface — optional-chain it so
@@ -99,7 +135,14 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
             <h2>Für dich</h2>
             <span class="hint">basierend auf <b>{{ primaryInterest }}</b></span>
           </div>
-          <EventList :events="recoEvents" :loading="recoLoading" :total="recoTotal" />
+          <EventList
+            :events="recoEvents"
+            :loading="recoLoading"
+            :total="recoTotal"
+            :savable="true"
+            :savedIds="savedIds"
+            @toggle-save="toggleSave"
+          />
         </section>
 
         <!-- Shared search + results (same as the public index) -->
@@ -114,7 +157,14 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
             @search="onMainSearch"
           />
           <div class="results">
-            <EventList :events="mainEvents" :loading="mainLoading" :total="mainTotal" />
+            <EventList
+              :events="mainEvents"
+              :loading="mainLoading"
+              :total="mainTotal"
+              :savable="true"
+              :savedIds="savedIds"
+              @toggle-save="toggleSave"
+            />
           </div>
         </section>
       </main>
@@ -129,6 +179,23 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
           <div v-if="homeLabel" class="why"><span class="ic">◆</span><div>Rund um <b>{{ homeLabel }}</b><template v-if="radiusKm"> · {{ radiusKm }} km</template></div></div>
           <div class="why"><span class="ic">◆</span><div>Aggregiert aus mehreren Quellen — auch Blindspots</div></div>
         </div>
+        <div v-if="savedEvents.length" class="box">
+          <h4>Demnächst gespeichert</h4>
+          <div v-for="e in savedEvents.slice(0, 5)" :key="e.id" class="mini">
+            <div class="date"><div class="d">{{ miniDate(e.start).d }}</div><div class="m">{{ miniDate(e.start).m }}</div></div>
+            <div class="info"><b>{{ e.title }}</b><span class="muted">{{ e.city || (e.is_online ? 'Online' : 'Ort offen') }}</span></div>
+          </div>
+        </div>
+
+        <div v-if="blindspotEvents.length" class="box">
+          <h4>⚡ Blindspot-Feed</h4>
+          <p class="muted bs-note">Events, die aktuell nur auf <b>einer</b> Quelle gelistet sind. Mehrfach-Listing-Erkennung folgt mit dem Cross-Source-Dedup (Slice 5).</p>
+          <div v-for="e in blindspotEvents" :key="e.id" class="mini">
+            <div class="date"><div class="d">{{ miniDate(e.start).d }}</div><div class="m">{{ miniDate(e.start).m }}</div></div>
+            <div class="info"><b>{{ e.title }}</b><span class="muted">{{ e.city || (e.is_online ? 'Online' : 'Ort offen') }}</span></div>
+          </div>
+        </div>
+
         <div class="box tip">
           <h4>Tipp</h4>
           <p class="muted">Passe Interessen, Wohnort und Radius im <RouterLink to="/profile">Profil</RouterLink> an — die Vorschläge richten sich danach.</p>
@@ -170,6 +237,17 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
 .rail h4 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--faint); }
 .why { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 11px; font-size: 13px; }
 .why .ic { color: var(--accent); margin-top: 1px; }
+
+.mini { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.mini:last-child { margin-bottom: 0; }
+.mini .date { flex: 0 0 42px; text-align: center; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 5px 0; }
+.mini .date .d { font-size: 16px; font-weight: 800; line-height: 1; }
+.mini .date .m { font-size: 10px; color: var(--muted); }
+.mini .info { min-width: 0; }
+.mini .info b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .info .muted { font-size: 12px; }
+.bs-note { font-size: 12px; margin: 0 0 12px; line-height: 1.45; }
+.bs-note b { color: var(--ink, var(--txt)); }
 .tip p { margin: 0; font-size: 13px; }
 .tip a { color: var(--accent); font-weight: 600; }
 
