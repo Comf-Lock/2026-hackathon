@@ -12,6 +12,27 @@ from .db import init_db
 
 logger = logging.getLogger("eventradar")
 
+# Shared log line format for the app's own loggers — matches the ingest CLI so web and CLI output
+# read the same way ("LEVEL   eventradar.<area>: message").
+_LOG_FORMAT = "%(levelname)-7s %(name)s: %(message)s"
+
+
+def _configure_logging() -> None:
+    """Give the app's ``eventradar.*`` loggers a consistent handler + level under uvicorn.
+
+    Uvicorn configures only its own loggers, so our named loggers (``eventradar.geocode``,
+    ``eventradar.ingest`` …) would otherwise inherit the root WARNING level and our INFO lines would
+    vanish. We attach one handler to the ``eventradar`` parent and stop propagation so lines are not
+    also re-emitted by the root handler. Idempotent — safe across reloads / repeated lifespans.
+    """
+    app_logger = logging.getLogger("eventradar")
+    if not app_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(_LOG_FORMAT))
+        app_logger.addHandler(handler)
+        app_logger.propagate = False
+    app_logger.setLevel(logging.INFO)
+
 
 def _guard_secrets() -> None:
     """Fail-fast in production (warn in dev) when security-critical settings are still dev defaults."""
@@ -33,6 +54,7 @@ def _guard_secrets() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _configure_logging()
     _guard_secrets()
     init_db()
     yield

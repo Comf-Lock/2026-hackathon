@@ -11,7 +11,8 @@ EVENT_OUT_FIELDS = {
     "id", "title", "description", "start", "end", "is_online", "venue_name",
     "address", "city", "postal_code", "lat", "lng", "organizer", "tags", "url",
     "image_url", "price", "language",
-    "topic_weights", "intent_weights", "score_confidence", "sources",
+    "topic_weights", "intent_weights", "score_confidence",
+    "attendee_count", "attendance_source", "sources",
 }
 
 

@@ -65,6 +65,15 @@ def test_meetup_parses_next_data(fixture_text):
     assert all(r.organizer for r in records)
 
 
+def test_meetup_captures_going_count_for_attendance(fixture_text):
+    # The scraped Apollo state carries the RSVP "going" count; the adapter stashes it on
+    # raw_payload so the attendance step reads it without an API key.
+    records = parse_meetup(fixture_text("meetup_analytics_pioneers.html"))
+    with_count = [r for r in records if "going_count" in r.raw_payload]
+    assert with_count, "expected at least one event with a captured going_count"
+    assert all(isinstance(r.raw_payload["going_count"], int) for r in with_count)
+
+
 def test_meetup_empty_group_is_not_an_error(fixture_text):
     # "Würzburg DATA & ANALYTICS" had zero upcoming events when captured — must yield [], not raise.
     records = parse_meetup(fixture_text("meetup_data_analytics.html"))

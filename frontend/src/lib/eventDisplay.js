@@ -95,7 +95,7 @@ export function distinctSources(sources) {
 // the old "Blindspot" (a gap metric, negative) as a *positive* signal: more independent sources
 // listing the same event → higher visibility/popularity. The badge grows more prominent with the
 // tier, never less. `count` is distinctSources(...).length.
-//   1     → exclusive find (a discovery, not a deficit)
+//   1     → found on a single source (stated plainly, no value framing)
 //   2–3   → listed on several sources
 //   4+    → high visibility across the region
 export function visibilityTier(count) {
@@ -116,7 +116,7 @@ export function visibilityTier(count) {
   }
   return {
     key: 'exclusive',
-    badge: '★ Exklusiv gelistet',
+    badge: 'nur 1 Quelle',
     tooltip: 'Aktuell nur über eine Quelle gefunden.',
   }
 }
