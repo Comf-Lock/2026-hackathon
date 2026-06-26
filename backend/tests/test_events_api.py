@@ -82,17 +82,51 @@ def test_tag_filter_any_match(client, session):
     assert r.json()["total"] == 2
 
 
-def test_upcoming_default_excludes_past_but_date_from_includes(client, session):
+def test_default_includes_past_and_future(client, session):
     _mk(session, title="Past", start=NOW - timedelta(days=10))
     _mk(session, title="Future", start=NOW + timedelta(days=10))
 
-    # default: only upcoming
+    # default now returns past events too (still listed on their source); ongoing/upcoming first.
     body = client.get("/api/events").json()
+    assert body["total"] == 2
+    assert [it["title"] for it in body["items"]] == ["Future", "Past"]
+
+
+def test_upcoming_true_excludes_past(client, session):
+    _mk(session, title="Past", start=NOW - timedelta(days=10))
+    _mk(session, title="Future", start=NOW + timedelta(days=10))
+
+    body = client.get("/api/events", params={"upcoming": "true"}).json()
     assert body["total"] == 1 and body["items"][0]["title"] == "Future"
 
-    # explicit date_from in the past surfaces the old event too
-    past_day = (NOW - timedelta(days=20)).date().isoformat()
-    assert client.get("/api/events", params={"date_from": past_day}).json()["total"] == 2
+
+def test_ongoing_multiday_event_counts_as_upcoming(client, session):
+    # AI-Week scenario: started days ago but runs into the future → ongoing, NOT past.
+    _mk(session, title="AI Week", start=NOW - timedelta(days=3), end=NOW + timedelta(days=2))
+    _mk(session, title="Done", start=NOW - timedelta(days=3), end=NOW - timedelta(days=1))
+
+    body = client.get("/api/events", params={"upcoming": "true"}).json()
+    assert body["total"] == 1 and body["items"][0]["title"] == "AI Week"
+
+
+def test_default_ordering_upcoming_asc_then_past_desc(client, session):
+    _mk(session, title="U-near", start=NOW + timedelta(days=1))
+    _mk(session, title="U-far", start=NOW + timedelta(days=5))
+    _mk(session, title="P-recent", start=NOW - timedelta(days=1))
+    _mk(session, title="P-old", start=NOW - timedelta(days=5))
+
+    titles = [it["title"] for it in client.get("/api/events").json()["items"]]
+    assert titles == ["U-near", "U-far", "P-recent", "P-old"]
+
+
+def test_date_from_overrides_default(client, session):
+    _mk(session, title="Past", start=NOW - timedelta(days=10))
+    _mk(session, title="Future", start=NOW + timedelta(days=10))
+
+    # explicit date_from in the future restricts to events at/after it (overrides the include-past default)
+    future_day = (NOW + timedelta(days=5)).date().isoformat()
+    body = client.get("/api/events", params={"date_from": future_day}).json()
+    assert body["total"] == 1 and body["items"][0]["title"] == "Future"
 
 
 def test_sort_ascending_and_pagination(client, session):

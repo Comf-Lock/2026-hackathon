@@ -27,6 +27,10 @@ def search_events(
     date_from: date | None = Query(default=None, description="start >= date_from"),
     date_to: date | None = Query(default=None, description="start <= date_to"),
     is_online: bool | None = Query(default=None),
+    upcoming: bool = Query(
+        default=False,
+        description="only ongoing/upcoming events (effective end >= today); default also returns past",
+    ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     sort: str = Query(default="start", pattern="^start$"),
@@ -40,6 +44,7 @@ def search_events(
         date_from=date_from,
         date_to=date_to,
         is_online=is_online,
+        upcoming=upcoming,
         limit=limit,
         offset=offset,
     )
