@@ -62,6 +62,20 @@ class Settings(BaseSettings):
     # (Luma + scraped Meetup counts) keeps working with no key.
     meetup_api_key: str = ""
 
+    # --- Web Push (VAPID / Push API) ---
+    # The VAPID keypair authenticates this server to the browser push services. Generate once with
+    # `vapid --gen` (py-vapid) and put the values in .env — never commit real keys. The public key is
+    # also handed to the frontend so it can subscribe; the subject is a mailto:/https: contact URL.
+    # All empty by default → send_push() is a graceful no-op (push disabled) until keys are set.
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:comflock@gmail.com"
+
+    @property
+    def push_enabled(self) -> bool:
+        """True once a VAPID keypair is configured — gates real push delivery."""
+        return bool(self.vapid_public_key and self.vapid_private_key)
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}

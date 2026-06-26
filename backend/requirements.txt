@@ -12,3 +12,5 @@ pyyaml>=6.0
 # Claude-Haiku event weighting (slice 4 enrichment). Optional at runtime: with no
 # ANTHROPIC_API_KEY the scoring step is skipped, but the package must import for `score`.
 anthropic>=0.40
+# Web Push (VAPID) delivery — encrypts + sends notifications to browser push services.
+pywebpush>=2.0
