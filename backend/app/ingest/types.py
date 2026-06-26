@@ -45,12 +45,30 @@ class GeoScope(BaseModel):
     )
 
     # Title keywords that mark an event as IT/tech relevant (broad calendars need this).
+    #
+    # Tuning rule: every keyword must be IT-distinctive on its own. Generic event words that
+    # broad city calendars overflow with — "Workshop", "Meetup", "Vortrag", "Seminar", "Kurs",
+    # "Innovation" — are deliberately NOT here: they would let yoga/cooking/business events
+    # through. Substring match for 4+ char keywords catches German compounds
+    # ("digital" → "Digitalisierung", "programmier" → "Programmierkurs"); ≤3 char keywords
+    # ("ki"/"ai"/"ml"/"iot"/"edv"/"llm") match only as whole words (see _keyword_matcher).
     keywords: list[str] = Field(
         default_factory=lambda: [
-            "ki", "ai", "künstliche intelligenz", "machine learning", "ml", "data",
-            "daten", "hackathon", "barcamp", "web", "digital", "cyber", "security",
-            "dev", "developer", "software", "coding", "code", "startup", "start-up",
-            "tech", "it-", "cloud", "devops", "python", "javascript", "agile",
+            # AI / data
+            "ki", "ai", "künstliche intelligenz", "machine learning", "ml", "llm",
+            "data", "daten", "deep learning", "neuronale",
+            # software / dev
+            "software", "coding", "code", "programmier", "developer", "dev", "devops",
+            "python", "javascript", "agile", "informatik", "open source", "linux",
+            # web / cloud / infra
+            "web", "cloud", "iot", "blockchain", "krypto",
+            # security
+            "cyber", "security", "hacker", "hackerspace",
+            # maker / robotics / hardware
+            "robotik", "roboter", "maker", "fablab", "3d-druck", "elektronik",
+            # ecosystem / events
+            "digital", "tech", "it-", "edv", "hackathon", "barcamp",
+            "startup", "start-up", "gründer",
         ]
     )
 
