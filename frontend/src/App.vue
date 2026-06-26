@@ -1,18 +1,26 @@
 <script setup>
 import { computed, onMounted } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import BrandLogo from './components/BrandLogo.vue'
 import { useAuth } from './composables/useAuth'
 
 const { user, loading, fetchMe, login, logout } = useAuth()
 const route = useRoute()
+const router = useRouter()
 
 // Dashboard, landing, calendar and map all use the wide (1240px) shell so content lines up under
 // the header bar in every view.
 const wideHeader = computed(() => ['dashboard', 'landing', 'calendar', 'map'].includes(route.name))
 
-// "Liste" points logged-in users at their dashboard, visitors at the public index.
-const listTarget = computed(() => (user.value ? '/dashboard' : '/'))
+// "Suche" points logged-in users at their dashboard, visitors at the public index.
+const searchTarget = computed(() => (user.value ? '/dashboard' : '/'))
+
+// Logout clears the session, then sends the user back to the public search/landing page — the
+// router guard only runs on navigation, so /dashboard would otherwise linger after logout.
+async function onLogout() {
+  await logout()
+  router.push('/')
+}
 
 onMounted(() => fetchMe())
 </script>
@@ -26,7 +34,7 @@ onMounted(() => fetchMe())
       </RouterLink>
 
       <nav class="views">
-        <RouterLink :to="listTarget" class="vlink" :class="{ on: ['landing', 'dashboard'].includes(route.name) }">Liste</RouterLink>
+        <RouterLink :to="searchTarget" class="vlink" :class="{ on: ['landing', 'dashboard'].includes(route.name) }">Suche</RouterLink>
         <RouterLink to="/calendar" class="vlink" :class="{ on: route.name === 'calendar' }">Kalender</RouterLink>
         <RouterLink to="/map" class="vlink" :class="{ on: route.name === 'map' }">Karte</RouterLink>
       </nav>
@@ -40,7 +48,7 @@ onMounted(() => fetchMe())
             <img v-if="user.avatar_url" :src="user.avatar_url" alt="" class="avatar" />
             <span>{{ user.display_name || 'Profil' }}</span>
           </RouterLink>
-          <button class="btn ghost" @click="logout">Abmelden</button>
+          <button class="btn ghost" @click="onLogout">Abmelden</button>
         </template>
         <template v-else>
           <button class="btn primary" @click="login">Login mit Google</button>

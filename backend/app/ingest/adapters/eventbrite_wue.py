@@ -15,9 +15,9 @@ from collections.abc import Sequence
 
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
-from . import _http
 from . import _normalize as N
 from ._dates import from_iso, from_iso_date
+from ._fetch import fetch_pages_deduped
 
 LISTING_URLS = (
     "https://www.eventbrite.com/b/germany--w%C3%BCrzburg/science-and-tech/",
@@ -142,16 +142,8 @@ class EventbriteWueAdapter:
     broad = True
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
-        seen: set[str] = set()
-        out: list[RawEventRecord] = []
-        for url in LISTING_URLS:
-            html = await _http.fetch_text(url)
-            for rec in parse_eventbrite(html):
-                key = rec.stable_external_id()
-                if key not in seen:  # the two listings overlap — dedup within the run
-                    seen.add(key)
-                    out.append(rec)
-        return out
+        # The two listings overlap (popular events show on both) — dedup within the run (helper, shared).
+        return await fetch_pages_deduped(LISTING_URLS, parse_eventbrite)
 
 
 register(EventbriteWueAdapter())

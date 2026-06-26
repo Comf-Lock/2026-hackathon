@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlmodel import Session, select
 
+from .._time import utcnow
 from ..config import settings
 from ..models import Event, EventSource
 from .dedup import record_fingerprint
@@ -22,10 +23,6 @@ from .registry import get_adapters
 from .types import GeoScope, RawEventRecord
 
 logger = logging.getLogger("eventradar.ingest")
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def default_scope() -> GeoScope:
@@ -118,7 +115,7 @@ def upsert_event(session: Session, record: RawEventRecord) -> bool:
     Caller commits.
     """
     ext_id = record.stable_external_id()
-    fetched = record.fetched_at or _utcnow()
+    fetched = record.fetched_at or utcnow()
     dkey = record_fingerprint(record)
 
     # Line 1: same source + same external id → refresh in place.

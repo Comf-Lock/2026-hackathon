@@ -14,8 +14,8 @@ from collections.abc import Sequence
 
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
-from . import _http
 from ._dates import from_iso
+from ._fetch import fetch_pages_deduped
 
 # Configurable: each entry is a Meetup group's events page (catalogue #7/#8; extend in slice 5).
 GROUP_URLS = (
@@ -138,16 +138,8 @@ class MeetupAdapter:
     broad = False  # IT/data communities — no keyword gate
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
-        seen: set[str] = set()
-        out: list[RawEventRecord] = []
-        for url in GROUP_URLS:
-            html = await _http.fetch_text(url)
-            for rec in parse_meetup(html):
-                key = rec.stable_external_id()
-                if key not in seen:
-                    seen.add(key)
-                    out.append(rec)
-        return out
+        # The two group pages can list the same event — dedup within the run (helper, shared).
+        return await fetch_pages_deduped(GROUP_URLS, parse_meetup)
 
 
 register(MeetupAdapter())

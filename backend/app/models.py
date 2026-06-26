@@ -9,14 +9,12 @@ Event can be backed by several sources once cross-source dedup lands (slice 5); 
 the scraper produces one source per event. The (source_adapter, external_id) pair is the
 idempotency key, so re-runs update in place instead of duplicating.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+from ._time import utcnow
 
 
 class User(SQLModel, table=True):
@@ -27,7 +25,7 @@ class User(SQLModel, table=True):
     email: str
     display_name: str
     avatar_url: str | None = None
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class Profile(SQLModel, table=True):
@@ -104,8 +102,8 @@ class Event(SQLModel, table=True):
     attendance_source: str | None = None
     attendance_checked_at: datetime | None = None
 
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
 
 
 class EventSource(SQLModel, table=True):
@@ -126,7 +124,7 @@ class EventSource(SQLModel, table=True):
     source_adapter: str = Field(index=True)  # e.g. "thws_fiw", "eventbrite_wue", "meetup"
     external_id: str  # stable source id; fallback sha256(source_url|title|start) — see ingest.types
     source_url: str
-    fetched_at: datetime = Field(default_factory=_utcnow)
+    fetched_at: datetime = Field(default_factory=utcnow)
 
     # origin_type: scrape | feed | api | organizer | crowd — steers trust/moderation downstream.
     origin_type: str = "scrape"
@@ -158,7 +156,7 @@ class FeedSource(SQLModel, table=True):
     trust_tier: int = 2
     broad: bool = False
     enabled: bool = True
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
     created_by: int | None = Field(default=None, foreign_key="users.id")
 
 
@@ -173,4 +171,4 @@ class Bookmark(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     event_id: int = Field(foreign_key="events.id", index=True)
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(default_factory=utcnow)
