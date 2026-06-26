@@ -10,6 +10,7 @@ the structurally-filtered rows and intersecting in Python is correct and cheap.
 """
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, time, timezone
 
 from sqlalchemy import case, func, or_
@@ -18,6 +19,13 @@ from sqlmodel import Session, select
 from .geo import haversine_km
 from .models import Event, EventSource
 from .schemas import EventOut, EventSearchResponse, SourceOut
+
+logger = logging.getLogger("eventradar.events")
+
+# Pagination contract — the one place these limits are defined; the router imports them for its
+# query-parameter bounds so "what the API accepts" and "what the service defaults to" never drift.
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
 
 
 def sources_for(session: Session, events: list[Event]) -> dict[int, list[SourceOut]]:
@@ -65,7 +73,7 @@ def search_events(
     center_lat: float | None = None,
     center_lng: float | None = None,
     radius_km: float | None = None,
-    limit: int = 20,
+    limit: int = DEFAULT_PAGE_SIZE,
     offset: int = 0,
 ) -> EventSearchResponse:
     """Filtered, paginated event search. Filters are ANDed.
@@ -147,6 +155,11 @@ def search_events(
 
     srcs = sources_for(session, page)
     items = [to_event_out(e, srcs.get(e.id, [])) for e in page]
+    logger.debug(
+        "search_events: total=%d page=%d (offset=%d limit=%d) radius=%s",
+        total, len(items), offset, limit,
+        f"{radius_km}km@({center_lat},{center_lng})" if radius_active else "off",
+    )
     return EventSearchResponse(total=total, items=items)
 
 

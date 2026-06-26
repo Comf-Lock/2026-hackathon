@@ -9,6 +9,8 @@ Flow:
 The session is a signed httpOnly cookie (Starlette SessionMiddleware) holding only the
 user id — no token is exposed to the frontend.
 """
+import logging
+
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -18,6 +20,8 @@ from sqlmodel import Session, select
 from .config import settings
 from .db import get_session
 from .models import Profile, User
+
+logger = logging.getLogger("eventradar.auth")
 
 
 class UserOut(BaseModel):
@@ -52,10 +56,12 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
     try:
         token = await oauth.google.authorize_access_token(request)
     except Exception as exc:  # invalid state / network / config error
+        logger.warning("OAuth token exchange failed: %s", exc)
         raise HTTPException(status_code=400, detail=f"OAuth exchange failed: {exc}")
 
     userinfo = token.get("userinfo")
     if not userinfo or "sub" not in userinfo:
+        logger.warning("OAuth callback returned no usable userinfo")
         raise HTTPException(status_code=400, detail="No userinfo returned by Google")
 
     sub = userinfo["sub"]
@@ -72,8 +78,10 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
         session.refresh(user)
         session.add(Profile(user_id=user.id))
         session.commit()
+        logger.info("registered new user id=%s (%s)", user.id, user.email)
 
     request.session["user_id"] = user.id
+    logger.debug("login established for user id=%s", user.id)
     # After login the user lands on the dashboard (the post-login home).
     return RedirectResponse(url=f"{settings.frontend_url}/dashboard", status_code=303)
 
@@ -92,6 +100,8 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Not authenticated")
     user = session.get(User, user_id)
     if user is None:
+        # Session points at a user that no longer exists (deleted/reset DB) — drop the stale cookie.
+        logger.info("clearing stale session for missing user id=%s", user_id)
         request.session.clear()
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
