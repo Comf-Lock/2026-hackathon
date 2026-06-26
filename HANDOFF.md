@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent1-thws-adapter
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · agent1-thws-adapter-done · ihk-needs-playwright
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-1 · **THWS uni-weiter Scraper-Adapter — fertig, committet, push ausstehend** (`79e43b5`, auf `origin/master` @ `85dc40e` rebased). Brief war „neue HTML-Scraper THWS + IHK". **THWS gebaut:** `www.thws.de/termine` ist dasselbe server-gerenderte Accordion wie die bestehende FIW-Seite, aber uni-weit (alle Fakultäten/beide Campus) → liefert IT-Events die die FIW-Seite nie listet. Accordion-Parser in `backend/app/ingest/adapters/_thws.py` (`parse_accordion`) extrahiert (ein Parser, zwei Seiten — kein Doppel-Scrape-Code); `thws_fiw.py` delegiert jetzt dorthin (Signatur `parse_thws_fiw`+`PAGE_URL` unverändert, alle Bestandstests grün). Neuer `thws`-Adapter (`adapters/thws.py`): `broad=True` (uni-weit mischt non-IT → Kern-Keyword-Gate), `trust_tier=1`, `default_city=None` (Campus aus Text statt raten), shared `http` (P0.1), via P1.1-Registry registriert → **14 Adapter**. Event-Overlap mit FIW löst der `dedup_key` downstream (keine Doppel-Events). Mappt end-Datum (multi-day `bis DD.MM.YYYY` + same-day `bis HH:MM`), city/postal, organizer, url. Pure `parse_thws()` gegen Fixture getestet (`tests/test_thws.py` + `tests/fixtures/thws_termine.html`), kein Live-Call. Live-Dry-Run: 21 found → 4 IT-relevant kept, 0 Crash. **110 pytest grün. IHK NICHT gebaut → Playwright-Flag** (siehe open_questions). **Nächster Schritt:** `git push origin agent/agent-1`; Master macht PR `agent/agent-1 → master` (protected).
 
 ## active_plans
 
@@ -35,6 +33,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 
 ## open_questions
 
+- **IHK Würzburg-Schweinfurt braucht Playwright (Master: `playwright install`).** `wuerzburg.ihk.de/veranstaltungen/` (+ `/termine-startups/`) rendert seine Events **client-seitig via die sweap.io-SPA** — `<div id="sweap-overview-container" data-account-id="b7c34338-17bf-4fec-8d5c-e629b8d05b22">`, **0 Events im statischen HTML** (httpx+bs4 reicht nicht). Reverse-Eng der sweap-JSON-API (`GET commons.sweap.io/api/webclient/v1/registration-pages?overview_ids=…`) gestoppt: `overview_ids` ließ sich nicht zuverlässig aus der `account-id` auflösen (alle Varianten 404). Per Brief = Playwright-Fall. **Nächster Schritt:** Master fährt `playwright install`, dann `ihk_wue`-Adapter (Playwright-Render von `programm`-DOM **oder** sweap-API mit korrekt aufgelösten `overview_ids`). Kein untestbarer Dead-Code im Repo hinterlegt.
 - Google-OAuth-Client (Client-ID/Secret + Redirect-URIs) — Lars legt ihn an, sobald Login lokal getestet werden soll (Code baut gegen .env-Platzhalter, nicht blockierend)
 - Versioniertes Seed-Skript (backend/seed/) für Demo-Events? — offen, bei Bedarf anlegen
 - Veranstalter-Anmeldung als bewusstes Produktziel mit aufnehmen (vs. erst nur Aggregation)?
