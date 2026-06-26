@@ -3,27 +3,19 @@
 // gelistet"). Extracted from DashboardView so the two byte-identical mini markups live in one
 // place. Presentational only — owns its date pill formatting and styles.
 import { computed } from 'vue'
+import { formatDayPill, formatPlaceShort } from '../lib/eventFormat'
 
 const props = defineProps({
   event: { type: Object, required: true },
 })
 
-const MONTHS = ['JAN', 'FEB', 'MÄR', 'APR', 'MAI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEZ']
-
-const date = computed(() => {
-  const d = new Date(props.event.start)
-  if (Number.isNaN(d.getTime())) return { d: '–', m: '' }
-  return { d: d.getDate(), m: MONTHS[d.getMonth()] }
-})
-
-const place = computed(() =>
-  props.event.city || (props.event.is_online ? 'Online' : 'Ort offen'),
-)
+const date = computed(() => formatDayPill(props.event.start))
+const place = computed(() => formatPlaceShort(props.event))
 </script>
 
 <template>
   <div class="mini">
-    <div class="date"><div class="d">{{ date.d }}</div><div class="m">{{ date.m }}</div></div>
+    <div class="date"><div class="d">{{ date.day }}</div><div class="m">{{ date.month }}</div></div>
     <div class="info"><b>{{ event.title }}</b><span class="muted">{{ place }}</span></div>
   </div>
 </template>

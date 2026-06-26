@@ -12,7 +12,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEvents } from '../composables/useEvents'
 import { api } from '../api'
-import { formatDateLabel } from '../calendar/calendarRange'
+import { formatDateLabel, venueCity } from '../lib/eventFormat'
 import MapEventList from '../map/MapEventList.vue'
 
 // Mainfranken / Würzburg as the default focus when there's nothing to fit to.
@@ -69,7 +69,7 @@ function escapeHtml(s) {
 function popupHtml(e) {
   const title = escapeHtml(e.title)
   const when = escapeHtml(formatDateLabel(e.start))
-  const place = escapeHtml([e.venue_name, e.city].filter(Boolean).join(', '))
+  const place = escapeHtml(venueCity(e))
   const link = e.url
     ? `<a href="${escapeHtml(e.url)}" target="_blank" rel="noopener">Zum Event ↗</a>`
     : ''

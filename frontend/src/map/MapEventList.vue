@@ -3,7 +3,7 @@
 // (lat/lng) are clickable → the map flies to them; events without coordinates are listed but
 // greyed/disabled (no marker to jump to). Own lightweight item rendering — does NOT use EventCard.
 import { computed } from 'vue'
-import { formatDateLabel } from '../calendar/calendarRange'
+import { formatDateLabel, formatPlace } from '../lib/eventFormat'
 
 const props = defineProps({
   events: { type: Array, default: () => [] },
@@ -14,9 +14,7 @@ const emit = defineEmits(['select', 'hover'])
 function hasCoords(e) {
   return typeof e.lat === 'number' && typeof e.lng === 'number'
 }
-function place(e) {
-  return [e.venue_name, e.city].filter(Boolean).join(', ') || (e.is_online ? 'Online' : 'Ort offen')
-}
+const place = formatPlace
 const locatedCount = computed(() => props.events.filter(hasCoords).length)
 
 function onActivate(e) {
