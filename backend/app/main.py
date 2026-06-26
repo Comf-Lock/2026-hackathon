@@ -1,4 +1,5 @@
 """Event Radar API — FastAPI application entrypoint."""
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,9 +10,30 @@ from . import auth, bookmarks, events, feeds, profile
 from .config import settings
 from .db import init_db
 
+logger = logging.getLogger("eventradar")
+
+
+def _guard_secrets() -> None:
+    """Fail-fast in production (warn in dev) when security-critical settings are still dev defaults."""
+    insecure = settings.insecure_defaults()
+    if not insecure:
+        return
+    fields = ", ".join(insecure)
+    if settings.is_production:
+        raise RuntimeError(
+            f"Refusing to start in production with insecure default secrets: {fields}. "
+            "Set real values in the environment."
+        )
+    logger.warning(
+        "Running with insecure DEV default secrets: %s. Fine for local dev; set real values "
+        "before deploying (environment=production will refuse to start otherwise).",
+        fields,
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _guard_secrets()
     init_db()
     yield
 
