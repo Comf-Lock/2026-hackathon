@@ -46,11 +46,22 @@ const displayEvents = computed(() => {
   )
 })
 
+// --- Online / Vor Ort filter (segmented toggle in the side-list header) -----------------------
+// Applied on top of the profile filter and used for BOTH the pins and the list, so the map and the
+// right column always stay in sync. 'inperson' = anything not explicitly online (undefined → in-person).
+const placeFilter = ref('all') // 'all' | 'inperson' | 'online'
+const filteredEvents = computed(() => {
+  const list = displayEvents.value
+  if (placeFilter.value === 'online') return list.filter((e) => e.is_online === true)
+  if (placeFilter.value === 'inperson') return list.filter((e) => !e.is_online)
+  return list
+})
+
 const located = computed(() =>
-  displayEvents.value.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number'),
+  filteredEvents.value.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number'),
 )
 const markerCount = computed(() => located.value.length)
-const noCoordsCount = computed(() => displayEvents.value.length - located.value.length)
+const noCoordsCount = computed(() => filteredEvents.value.length - located.value.length)
 
 const selectedId = ref(null)
 
@@ -119,7 +130,7 @@ function hoverEvent(e) {
   if (el) el.classList.add('hover')
 }
 
-watch(displayEvents, renderMarkers, { flush: 'post' })
+watch(filteredEvents, renderMarkers, { flush: 'post' })
 
 onMounted(async () => {
   map = L.map(mapEl, { center: WUERZBURG, zoom: 10, scrollWheelZoom: true })
@@ -160,7 +171,7 @@ onBeforeUnmount(() => {
         <div v-if="!loading && !error && markerCount === 0" class="overlay">
           <div class="card">
             <strong>Noch keine Event-Koordinaten</strong>
-            <p v-if="displayEvents.length">{{ displayEvents.length }} Event(s) gelistet, aber {{ noCoordsCount }} ohne Geo-Daten — Geocoding läuft serverseitig.</p>
+            <p v-if="filteredEvents.length">{{ filteredEvents.length }} Event(s) gelistet, aber {{ noCoordsCount }} ohne Geo-Daten — Geocoding läuft serverseitig.</p>
             <p v-else>Sobald Events mit Ort vorliegen, erscheinen sie hier als Marker.</p>
           </div>
         </div>
@@ -168,8 +179,9 @@ onBeforeUnmount(() => {
 
       <MapEventList
         class="side"
-        :events="displayEvents"
+        :events="filteredEvents"
         :selected-id="selectedId"
+        v-model:filter="placeFilter"
         @select="focusEvent"
         @hover="hoverEvent"
       />

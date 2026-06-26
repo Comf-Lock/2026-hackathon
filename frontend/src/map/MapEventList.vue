@@ -8,8 +8,17 @@ import { formatDateLabel, formatPlace } from '../lib/eventFormat'
 const props = defineProps({
   events: { type: Array, default: () => [] },
   selectedId: { type: [Number, String, null], default: null },
+  // Online / in-person filter (v-model:filter). The host owns the value so it can apply the same
+  // filter to the map pins — this component only renders the toggle and emits changes.
+  filter: { type: String, default: 'all' }, // 'all' | 'inperson' | 'online'
 })
-const emit = defineEmits(['select', 'hover'])
+const emit = defineEmits(['select', 'hover', 'update:filter'])
+
+const FILTERS = [
+  { key: 'all', label: 'Alle' },
+  { key: 'inperson', label: 'Vor Ort' },
+  { key: 'online', label: 'Online' },
+]
 
 function hasCoords(e) {
   return typeof e.lat === 'number' && typeof e.lng === 'number'
@@ -25,8 +34,18 @@ function onActivate(e) {
 <template>
   <aside class="sidelist">
     <div class="lhead">
-      <strong>{{ events.length }} Event{{ events.length === 1 ? '' : 's' }}</strong>
-      <span class="sub">{{ locatedCount }} auf der Karte</span>
+      <div class="lcount">
+        <strong>{{ events.length }} Event{{ events.length === 1 ? '' : 's' }}</strong>
+        <span class="sub">{{ locatedCount }} auf der Karte</span>
+      </div>
+      <div class="segmented" role="group" aria-label="Nach Ort filtern">
+        <button
+          v-for="opt in FILTERS" :key="opt.key"
+          type="button"
+          class="seg" :class="{ on: filter === opt.key }"
+          @click="emit('update:filter', opt.key)"
+        >{{ opt.label }}</button>
+      </div>
     </div>
 
     <ul class="items">
@@ -59,9 +78,17 @@ function onActivate(e) {
 
 <style scoped>
 .sidelist { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-.lhead { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px 10px; border-bottom: 1px solid var(--line); }
+.lhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 0 2px 10px; border-bottom: 1px solid var(--line); }
+.lcount { display: flex; align-items: baseline; gap: 8px; }
 .lhead strong { font-size: 14px; }
 .lhead .sub { color: var(--faint); font-size: 12px; }
+
+/* Online / Vor Ort segmented toggle — same visual language as the calendar/header switches.
+   Wraps onto its own row on narrow screens (flex-wrap on .lhead) so it stays tappable on mobile. */
+.segmented { display: flex; gap: 3px; background: var(--chip); padding: 3px; border-radius: 9px; }
+.seg { border: none; background: transparent; padding: 4px 11px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted); font-family: inherit; }
+.seg.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.seg:hover:not(.on) { color: var(--ink); }
 
 .items { list-style: none; margin: 0; padding: 8px 0 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .item { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
