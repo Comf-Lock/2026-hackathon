@@ -57,4 +57,17 @@ export default defineConfig({
       },
     },
   },
+  // `vite preview` serves the production build (with the real service worker enabled) — used behind
+  // Tailscale Serve over HTTPS so the PWA is installable on the phone. Mirrors `server` so /api +
+  // the OAuth login keep working same-origin (X-Forwarded-Host from Tailscale → host-aware redirect).
+  preview: {
+    port: 4173,
+    allowedHosts: ['macbook-pro-von-lars.tail7629bb.ts.net', '.ts.net'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
 })
