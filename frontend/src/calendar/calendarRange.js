@@ -27,6 +27,16 @@ export function ymd(d) {
 export const dayKey = (iso) => (iso || '').slice(0, 10)
 export const hhmm = (iso) => (iso || '').slice(11, 16)
 
+// "14. Jul 2026, 18:30" — TZ-safe (string-slice, no `new Date`) human label, shared by the map
+// popup and the map side-list so the two never drift.
+export function formatDateLabel(iso) {
+  const d = dayKey(iso)
+  if (!d) return 'Termin offen'
+  const [y, m, day] = d.split('-')
+  const t = hhmm(iso)
+  return `${Number(day)}. ${MONTHS_SHORT[Number(m) - 1]} ${y}${t ? `, ${t}` : ''}`
+}
+
 // --- arithmetic -----------------------------------------------------------------------------
 export function addDays(d, n) {
   const r = new Date(d)
