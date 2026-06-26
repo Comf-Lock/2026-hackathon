@@ -61,9 +61,10 @@ function miniDate(start) {
   return { d: d.getDate(), m: MONTHS[d.getMonth()] }
 }
 
-// Blindspot feed: events found on only one platform. Honest until cross-source dedup (Slice 5)
-// makes multi-source listings real — today most events are single-source.
-const blindspotEvents = computed(() =>
+// "Exklusiv gelistet": events found on only one source — framed positively as a discovery
+// (something you'd miss elsewhere), not as a gap. Cross-source dedup (Slice 5) makes multi-source
+// listings real, so this rail surfaces the genuinely single-source finds.
+const exclusiveEvents = computed(() =>
   mainEvents.value.filter((e) => distinctSources(e.sources).length <= 1).slice(0, 4),
 )
 
@@ -177,7 +178,7 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
             <template v-else>Vervollständige dein Profil für persönliche Treffer</template>
           </div></div>
           <div v-if="homeLabel" class="why"><span class="ic">◆</span><div>Rund um <b>{{ homeLabel }}</b><template v-if="radiusKm"> · {{ radiusKm }} km</template></div></div>
-          <div class="why"><span class="ic">◆</span><div>Aggregiert aus mehreren Quellen — auch Blindspots</div></div>
+          <div class="why"><span class="ic">◆</span><div>Aggregiert aus mehreren Quellen — Sichtbarkeit pro Event</div></div>
         </div>
         <div v-if="savedEvents.length" class="box">
           <h4>Demnächst gespeichert</h4>
@@ -187,10 +188,10 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
           </div>
         </div>
 
-        <div v-if="blindspotEvents.length" class="box">
-          <h4>⚡ Blindspot-Feed</h4>
-          <p class="muted bs-note">Events, die aktuell nur auf <b>einer</b> Quelle gelistet sind. Mehrfach-Listing-Erkennung folgt mit dem Cross-Source-Dedup (Slice 5).</p>
-          <div v-for="e in blindspotEvents" :key="e.id" class="mini">
+        <div v-if="exclusiveEvents.length" class="box">
+          <h4>★ Exklusiv gelistet</h4>
+          <p class="muted bs-note">Events, die wir aktuell auf nur <b>einer</b> Quelle gefunden haben — Entdeckungen, die du anderswo leicht verpasst. Mehr Quellen = höhere Sichtbarkeit.</p>
+          <div v-for="e in exclusiveEvents" :key="e.id" class="mini">
             <div class="date"><div class="d">{{ miniDate(e.start).d }}</div><div class="m">{{ miniDate(e.start).m }}</div></div>
             <div class="info"><b>{{ e.title }}</b><span class="muted">{{ e.city || (e.is_online ? 'Online' : 'Ort offen') }}</span></div>
           </div>

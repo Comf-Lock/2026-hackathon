@@ -36,6 +36,36 @@ export function distinctSources(sources) {
   return [...byLabel.values()]
 }
 
+// Visibility magnitude from the number of distinct sources an event was found on. This reframes
+// the old "Blindspot" (a gap metric, negative) as a *positive* signal: more independent sources
+// listing the same event → higher visibility/popularity. The badge grows more prominent with the
+// tier, never less. `count` is distinctSources(...).length.
+//   1     → exclusive find (a discovery, not a deficit)
+//   2–3   → listed on several sources
+//   4+    → high visibility across the region
+export function visibilityTier(count) {
+  const n = count || 0
+  if (n >= 4) {
+    return {
+      key: 'high',
+      badge: `Hohe Sichtbarkeit · ${n} Quellen`,
+      tooltip: `Auf ${n} Quellen in der Region gelistet.`,
+    }
+  }
+  if (n >= 2) {
+    return {
+      key: 'multi',
+      badge: `Mehrfach gelistet · ${n} Quellen`,
+      tooltip: `Auf ${n} unabhängigen Quellen gefunden.`,
+    }
+  }
+  return {
+    key: 'exclusive',
+    badge: '★ Exklusiv gelistet',
+    tooltip: 'Aktuell nur über eine Quelle gefunden.',
+  }
+}
+
 // Palette tuned to the Mainfranken accent family — indexed (not hashed) so adjacent bar
 // segments always differ in colour.
 const TAG_PALETTE = ['#b8324f', '#d98a2b', '#9c5cab', '#1f9d76', '#2f7bd6', '#c2557a']
