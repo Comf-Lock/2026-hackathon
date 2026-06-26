@@ -7,9 +7,9 @@ import { useAuth } from './composables/useAuth'
 const { user, loading, fetchMe, login, logout } = useAuth()
 const route = useRoute()
 
-// The dashboard is a wide (1240px) layout — let the header bar match it so the brand lines
-// up with the content instead of floating in a narrow 680px column.
-const wideHeader = computed(() => route.name === 'dashboard')
+// Dashboard and landing both use the wide (1240px) shell so the event feed renders at the same
+// column width in both — let the header bar match it so the brand lines up with the content.
+const wideHeader = computed(() => route.name === 'dashboard' || route.name === 'landing')
 
 onMounted(() => fetchMe())
 </script>

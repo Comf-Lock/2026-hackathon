@@ -26,19 +26,19 @@ Referenz: Vault `patterns/data-integration/connector-architecture.md`.
 
 ## Slices
 
-### Slice 1 — Auth & Profil  ·  ✅ gebaut (PR #2)
+### Slice 1 — Auth & Profil  ·  ✅ gebaut & gemergt
 Fundament: Nutzer identifizieren und ihre Relevanz-Kriterien erfassen.
 
 - Landing-Page (aus simplem Mockup `frontend/index.html` in Vue-App-Shell überführt)
-- Google-OAuth (Authorization-Code-Flow, Authlib; httpOnly-Session-Cookie)
+- Google-OAuth (Authorization-Code-Flow, Authlib; httpOnly-Session-Cookie) — **live verdrahtet** (echte Google-Client-Creds in `backend/.env`, Redirect `…/api/auth/google/callback`)
 - Datenmodell `User` + `Profile` (Interessen, Expertise, Wohnort/Geo, Suchumkreis)
-- `vue-router`: `/` (Landing) + `/profile` (auth-only)
-- **Scope:** nur lokal (Docker-Compose postgres+api, Vite-Dev-Server). Kein x1pro.
+- `vue-router`: `/` (Landing) + `/profile` + `/dashboard` (auth-only)
+- **Scope:** lokal (Vite-Dev-Server :5173 + uvicorn :8000 + Postgres :5432). Kein x1pro.
 
 → Detailplan: `plans/event-radar-slice-1.md`
-→ Stand: gebaut & verifiziert (vite build grün, 6 API-Routen, SQLite-Test 15/15). Offen: Merge PR #2, echte Google-OAuth-Creds, Postgres-Container-E2E.
+→ Stand: gebaut, gemergt, OAuth gegen echte Creds live.
 
-### Slice 2 — Ingestion-Fundament  ·  ⬜
+### Slice 2 — Ingestion-Fundament  ·  ✅ gebaut & gemergt
 Erste echte Daten im System — und das Pattern, auf dem alle weiteren Quellen aufsetzen.
 
 - Kanonisches `Event`-Schema (Titel, Zeit, Ort/Geo, Beschreibung, Tags, URL)
@@ -58,21 +58,29 @@ Erste echte Daten im System — und das Pattern, auf dem alle weiteren Quellen a
 
 → Detailplan: `plans/event-radar-slice-2.md`
 → Quellen + Zielschema: `documentation/features/event-sources-mainfranken.md`
+→ Stand: gebaut & gemergt. **9 registrierte Adapter** live (eventbrite_wue, meetup + 4 Meetup-ICS, thws_fiw, frizz_wuerzburg/RSS, zdi_gruenderzentren/ICS), idempotenter Upsert, Keyword-/Geo-Filter. Echte Events in Postgres.
 
-### Slice 3 — Event-Anzeige  ·  ⬜
+### Slice 3 — Event-Anzeige  ·  🔄 in Arbeit
 Aus Daten wird ein sichtbares Produkt.
 
-- Event-Liste (aus kanonischem Store statt statischer Mockup-Cards)
-- Leaflet-Karte mit Event-Markern (OpenStreetMap)
-- PostGIS-Umkreis-Filter gegen Profil-Wohnort + Suchumkreis
-- Filter nach Profil-Interessen / Tags
+- ✅ Event-Such-API `GET /api/events` (q/city/tag/date/is_online, Pagination, „kommende zuerst")
+- ✅ Event-Liste + Suchmaske (geteilt) — Public Index (logged-out) & Dashboard (logged-in), identische Item-Darstellung
+- 🔄 **Rich Event Card** (Ground-News-Optik adaptiert, bestehende Mainfranken-Farben):
+  - Tag-Chips + **Gewichtungs-Bar** (Tag-Spektrum; aktuell gleichmäßiger Split pro Tag, später LLM-gewichtet → Slice 4)
+  - **Quellen-Abgleich**-Zeile: „gefunden auf N Quellen" mit Plattform-Chips + **Blindspot-Badge** (1 Quelle) — voll aussagekräftig mit Dedup (Slice 5)
+  - **Rating-Bereich** (Slot vorbereitet, rendert nur falls Bewertungsdaten vorhanden)
+  - Identische Breite/Höhe in logged-in & logged-out
+- ⬜ Leaflet-Karte mit Event-Markern (OpenStreetMap)
+- ⬜ PostGIS-Umkreis-Filter gegen Profil-Wohnort + Suchumkreis
+- ✅ Filter nach Profil-Interessen / Tags (Dashboard-Vorbelegung aus Profil)
 
-### Slice 4 — Enrichment  ·  ⬜
-Personalisierung und saubere Geo-Daten.
+### Slice 4 — Enrichment & Personalisierung  ·  🔄 in Arbeit
+Personalisierung, gespeicherte Events und saubere Geo-Daten.
 
-- Geocoding (Nominatim) für Orte ohne Koordinaten — entkoppelt, per Hash gecacht
-- Claude-Haiku Intent-/Relevanz-Scoring: Event ↔ Profil-Interessen → personalisiertes Ranking
-- Enrichment nur für Neues, Ergebnis gecacht
+- 🔄 **Merken / Bookmarks** — gespeicherte Events pro Nutzer (`Bookmark`-Model + `GET/POST/DELETE /api/bookmarks`, auth-gated; „Merken"-Button auf der Card). Speist die Rail-Box „Demnächst gespeichert".
+- ⬜ Claude-Haiku **Intent-/Relevanz-Scoring**: Event ↔ Profil-Interessen → personalisiertes Ranking **und** treibt die **Gewichtungs-Bar** der Card (ersetzt den aktuellen gleichmäßigen Tag-Split durch echte LLM-Gewichte)
+- ⬜ Geocoding (Nominatim) für Orte ohne Koordinaten — entkoppelt, per Hash gecacht
+- ⬜ Enrichment nur für Neues, Ergebnis gecacht
 
 ### Slice 5 — Multi-Source & Dedup  ·  ⬜
 Breite Abdeckung ohne Duplikate.
@@ -81,6 +89,8 @@ Breite Abdeckung ohne Duplikate.
   offene APIs (Meetup / Luma / Eventbrite) — ergänzen den Scraper aus Slice 2
 - Dedup / Canonicalization als eigene Stufe (Fuzzy-/Embedding-Match + Zeit + Geo):
   N Quell-Rows → 1 kanonisches Event, „gefunden auf N Quellen"
+  → macht die in Slice 3 gebaute **Quellen-Abgleich-UI** (Plattform-Chips + Blindspot-Badge)
+  erst voll aussagekräftig: bis dahin ist fast jedes Event 1-Quelle (= Blindspot)
 - Redis-Queue-Worker pro Quelle (Retries, Rate-Limit, Fehler-Isolation) —
   entkoppelt vom Hauptprozess
 

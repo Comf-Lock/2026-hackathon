@@ -110,3 +110,17 @@ class EventSource(SQLModel, table=True):
     trust_tier: int = 3  # 1=high (institution/feed) … 3=low (open scrape)
 
     raw_payload: dict = Field(default_factory=dict, sa_column=Column(JSON))
+
+
+class Bookmark(SQLModel, table=True):
+    """A user's saved ("Merken") event. Unique on (user_id, event_id) — saving twice is idempotent."""
+
+    __tablename__ = "bookmarks"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_bookmark_user_event"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    event_id: int = Field(foreign_key="events.id", index=True)
+    created_at: datetime = Field(default_factory=_utcnow)

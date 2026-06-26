@@ -3,11 +3,20 @@
 // caller owns the data + search. Reused by the public index and the dashboard.
 import EventCard from './EventCard.vue'
 
-defineProps({
+const props = defineProps({
   events: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
+  // Bookmark wiring (logged-in dashboard). savedIds = event ids the user has saved.
+  savable: { type: Boolean, default: false },
+  savedIds: { type: Array, default: () => [] },
 })
+
+defineEmits(['toggle-save', 'require-login'])
+
+function isSaved(id) {
+  return props.savedIds.includes(id)
+}
 </script>
 
 <template>
@@ -24,7 +33,15 @@ defineProps({
       Keine Events gefunden — Filter anpassen oder Suchbegriff ändern.
     </div>
 
-    <EventCard v-for="ev in events" :key="ev.id" :event="ev" />
+    <EventCard
+      v-for="ev in events"
+      :key="ev.id"
+      :event="ev"
+      :savable="savable"
+      :saved="isSaved(ev.id)"
+      @toggle-save="$emit('toggle-save', $event)"
+      @require-login="$emit('require-login')"
+    />
   </section>
 </template>
 

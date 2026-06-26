@@ -16,7 +16,7 @@ onMounted(search)
 </script>
 
 <template>
-  <div class="wrap">
+  <div class="landing">
     <section class="hero">
       <span class="kick">Mainfranken Tech-Event-Radar</span>
       <h1>Finde die Tech-Community<br>vor deiner Haustür.</h1>
@@ -34,7 +34,13 @@ onMounted(search)
     <section class="finder">
       <h2 class="section-title">Events durchsuchen</h2>
       <SearchMask v-model="filters" @search="search" />
-      <EventList :events="events" :loading="loading" :total="total" />
+      <EventList
+        :events="events"
+        :loading="loading"
+        :total="total"
+        :savable="false"
+        @require-login="login"
+      />
     </section>
 
     <p class="hint">Demo-Stand · echte Events kommen über die Connector-Ingestion (Slice 2 ff.).</p>
@@ -42,6 +48,11 @@ onMounted(search)
 </template>
 
 <style scoped>
+/* Mirror the dashboard shell so the event feed renders at the SAME column width in both views. */
+.landing { max-width: 1240px; margin: 0 auto; padding: 0 22px 60px; }
+/* 854px = the dashboard's main column (1240 − 44 padding − 320 rail − 22 gap) → identical cards. */
+.finder { max-width: 854px; }
+
 .hero { padding: 40px 0 20px; }
 .hero h1 { font-size: 29px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -.6px; }
 .hero p { margin: 0; color: var(--muted); font-size: 15px; max-width: 34em; }
