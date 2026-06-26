@@ -1,9 +1,9 @@
 <script setup>
 // Logged-in dashboard: the personalised home for authenticated users.
 //
-// It reuses the SHARED search kit (SearchMask + EventList + useEventSearch) — owned by Agent-1,
-// imported here via ./dashboard/searchKit.js (the single swap point). On top of the shared search
-// it adds the personalisation that distinguishes it from the public index:
+// It reuses the SHARED search components (SearchMask + EventList) and the single useEvents data
+// layer. On top of the shared search it adds the personalisation that distinguishes it from the
+// public index:
 //   - greeting with the user's name
 //   - filter pre-fill from the profile (interests → tag, home_label → city)
 //   - a "Für dich" strip of interest-based recommendations
@@ -12,8 +12,10 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { api } from '../api'
 import { useAuth } from '../composables/useAuth'
+import { useEvents } from '../composables/useEvents'
 import { distinctSources } from '../lib/eventDisplay'
-import { SearchMask, EventList, useEventSearch } from '../dashboard/searchKit'
+import SearchMask from '../components/SearchMask.vue'
+import EventList from '../components/EventList.vue'
 import MiniEventRow from '../dashboard/MiniEventRow.vue'
 
 // Auth is resolved by the router guard before this view renders, so `user` is already populated —
@@ -27,12 +29,12 @@ const profileReady = ref(false)
 // interest-based recommendations ("Für dich"). Destructured so the refs auto-unwrap in template.
 const {
   filters: mainFilters, events: mainEvents, total: mainTotal,
-  loading: mainLoading, error: mainError, search: mainSearch,
-} = useEventSearch()
+  loading: mainLoading, error: mainError, load: mainLoad,
+} = useEvents()
 const {
   filters: recoFilters, events: recoEvents, total: recoTotal,
-  loading: recoLoading, error: recoError, search: recoSearch,
-} = useEventSearch()
+  loading: recoLoading, error: recoError, load: recoLoad,
+} = useEvents()
 
 // Bookmarks ("Merken"): savedIds drives the card button state; savedEvents fills the rail box.
 const savedEvents = ref([])
@@ -87,11 +89,11 @@ onMounted(async () => {
   if (Object.keys(prefill).length) mainFilters.value = { ...mainFilters.value, ...prefill }
   if (primaryInterest.value) recoFilters.value = { ...recoFilters.value, tag: primaryInterest.value }
 
-  await Promise.all([mainSearch(), recoSearch(), loadBookmarks()])
+  await Promise.all([mainLoad(), recoLoad(), loadBookmarks()])
 })
 
-// The live event API was unreachable on the last search → useEventSearch fell back to demo
-// fixtures and set `error`. Surface that instead of failing silently.
+// The live event API was unreachable on the last load → useEvents fell back to demo fixtures
+// and set `error`. Surface that instead of failing silently.
 const apiError = computed(() => Boolean(mainError.value || recoError.value))
 </script>
 
@@ -144,7 +146,7 @@ const apiError = computed(() => Boolean(mainError.value || recoError.value))
             <h2>Alle Events</h2>
             <span v-if="mainTotal" class="hint">{{ mainTotal }} Treffer</span>
           </div>
-          <SearchMask v-model="mainFilters" @search="mainSearch" />
+          <SearchMask v-model="mainFilters" @search="mainLoad" />
           <div class="results">
             <EventList
               :events="mainEvents"

@@ -4,15 +4,15 @@
 // /dashboard by the router guard, so this view is only ever seen logged out.
 import { onMounted } from 'vue'
 import { useAuth } from '../composables/useAuth'
-import { useEventSearch } from '../composables/useEventSearch'
+import { useEvents } from '../composables/useEvents'
 import SearchMask from '../components/SearchMask.vue'
 import EventList from '../components/EventList.vue'
 
 const { login } = useAuth()
-const { filters, events, total, loading, search } = useEventSearch()
+const { filters, events, total, loading, load } = useEvents()
 
 // Show results immediately — visitors see events before typing anything.
-onMounted(search)
+onMounted(load)
 </script>
 
 <template>
@@ -33,7 +33,7 @@ onMounted(search)
 
     <section class="finder">
       <h2 class="section-title">Events durchsuchen</h2>
-      <SearchMask v-model="filters" @search="search" />
+      <SearchMask v-model="filters" @search="load" />
       <EventList
         :events="events"
         :loading="loading"

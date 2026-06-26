@@ -4,7 +4,7 @@
 // paginated per period) — not just "next 20". Renders its own compact cells; it does NOT use
 // EventCard (owned by Agent-3).
 import { ref, computed, onMounted, watch } from 'vue'
-import { api } from '../api'
+import { useEvents } from '../composables/useEvents'
 import {
   WEEKDAYS, weekGrid, monthGrid, yearGrid, rangeFor, periodLabel,
   bucketByDay, ymd, hhmm,
@@ -20,39 +20,15 @@ const mode = ref('month')
 const cursor = ref(new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()))
 const todayKey = ymd(new Date())
 
-const events = ref([])
-const total = ref(0)
-const loading = ref(false)
-const error = ref(null)
+// Single data layer, in paginate mode so a whole period (incl. the year view) is loaded — paging
+// at the API's 100-row cap so it isn't silently truncated.
+const { filters, events, total, loading, error, load } = useEvents({ limit: 100, paginate: true })
 
-// Load every event in the current period, paging at the API's 100-row cap so year views aren't
-// silently truncated. Hard stop at 1000 rows as a runaway guard.
-async function load() {
-  loading.value = true
-  error.value = null
+// Point the shared filters at the visible period, then reload through the unified loader.
+function reload() {
   const { from, to } = rangeFor(mode.value, cursor.value)
-  try {
-    const acc = []
-    let offset = 0
-    let tot = 0
-    for (let page = 0; page < 10; page++) {
-      const p = new URLSearchParams({ date_from: from, date_to: to, limit: '100', offset: String(offset) })
-      const data = await api(`/api/events?${p.toString()}`)
-      const items = data.items || []
-      acc.push(...items)
-      tot = data.total ?? acc.length
-      offset += items.length
-      if (items.length === 0 || acc.length >= tot) break
-    }
-    events.value = acc
-    total.value = tot
-  } catch (e) {
-    error.value = e
-    events.value = []
-    total.value = 0
-  } finally {
-    loading.value = false
-  }
+  filters.value = { ...filters.value, dateFrom: from, dateTo: to }
+  return load()
 }
 
 const buckets = computed(() => bucketByDay(events.value))
@@ -92,8 +68,8 @@ function jumpToMonth(anchor) {
 }
 
 // Reload whenever the period or mode changes.
-watch([mode, cursor], load)
-onMounted(load)
+watch([mode, cursor], reload)
+onMounted(reload)
 </script>
 
 <template>
