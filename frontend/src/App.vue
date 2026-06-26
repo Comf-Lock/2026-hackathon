@@ -7,9 +7,9 @@ import { useAuth } from './composables/useAuth'
 const { user, loading, fetchMe, login, logout } = useAuth()
 const route = useRoute()
 
-// Dashboard, landing and calendar all use the wide (1240px) shell so content lines up under the
-// header bar in every view.
-const wideHeader = computed(() => ['dashboard', 'landing', 'calendar'].includes(route.name))
+// Dashboard, landing, calendar and map all use the wide (1240px) shell so content lines up under
+// the header bar in every view.
+const wideHeader = computed(() => ['dashboard', 'landing', 'calendar', 'map'].includes(route.name))
 
 // "Liste" points logged-in users at their dashboard, visitors at the public index.
 const listTarget = computed(() => (user.value ? '/dashboard' : '/'))
@@ -26,8 +26,9 @@ onMounted(() => fetchMe())
       </RouterLink>
 
       <nav class="views">
-        <RouterLink :to="listTarget" class="vlink" :class="{ on: route.name !== 'calendar' }">Liste</RouterLink>
+        <RouterLink :to="listTarget" class="vlink" :class="{ on: !['calendar', 'map'].includes(route.name) }">Liste</RouterLink>
         <RouterLink to="/calendar" class="vlink" :class="{ on: route.name === 'calendar' }">Kalender</RouterLink>
+        <RouterLink to="/map" class="vlink" :class="{ on: route.name === 'map' }">Karte</RouterLink>
       </nav>
 
       <nav class="actions">

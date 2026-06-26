@@ -3,12 +3,14 @@ import LandingView from './views/LandingView.vue'
 import DashboardView from './views/DashboardView.vue'
 import ProfileView from './views/ProfileView.vue'
 import CalendarView from './views/CalendarView.vue'
+import MapView from './views/MapView.vue'
 import { useAuth } from './composables/useAuth'
 
 const routes = [
   { path: '/', name: 'landing', component: LandingView },
-  // Public calendar — usable logged out AND in (no requiresAuth).
+  // Public calendar + map — usable logged out AND in (no requiresAuth).
   { path: '/calendar', name: 'calendar', component: CalendarView },
+  { path: '/map', name: 'map', component: MapView },
   { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { requiresAuth: true } },
   { path: '/profile', name: 'profile', component: ProfileView, meta: { requiresAuth: true } },
 ]
