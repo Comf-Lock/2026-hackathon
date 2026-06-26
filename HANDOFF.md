@@ -3,7 +3,7 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-26-agent3-llm-weighting
+last_updated: 2026-06-26-agent3-enrichment-modules
 schema_version: "0.4"
 status: slice1-deployed · master-orchestration · agent3-llm-weighting
 ---
@@ -14,7 +14,7 @@ status: slice1-deployed · master-orchestration · agent3-llm-weighting
 
 ## current_task
 
-Agent-3 (Branch agent/agent-3): LLM-Gewichtung der Events (Hybrid Taxonomie+Intent) per Claude Haiku. Rebase auf origin/master sauber (HEAD aded307). Auftrag _scrape/processed/task-llm-weighting.md, Design vollständig im Journal-Eintrag 2026-06-26 09:31 festgehalten. Code NOCH NICHT begonnen (Rotation kam vor Implementierung). DATEI-EIGENTUMS-GRENZE: Agent-2 arbeitet parallel am Quellen-/Sichtbarkeits-Badge in denselben Frontend-Dateien — ich fasse NUR weightBar/tagWeights/PLACEHOLDER_WEIGHTS in eventDisplay.js + den .intent-Block/bar-Computed in EventCard.vue + Backend-Enrichment an; NICHT distinctSources/sourceMeta/Quellen-Badge/Rail-Boxen. **Nächster Schritt:** backend/app/enrichment/{taxonomy,score,__init__}.py bauen (12 Topic-Felder + 4 Intent-Achsen; score._call_llm via anthropic SDK claude-haiku-4-5 mit output_config json_schema topics[]/intents[]/confidence/evidence, getrennt von pure _normalize summe→100; is_enabled()=bool(api_key) graceful; text_hash + THIN_TEXT_MIN=120), dann models.py Event += topic_weights/intent_weights JSON + score_confidence/score_model/scored_text_hash, config.py += anthropic_api_key+score_model, events.py EventOut += 3 Felder (test_events_api EVENT_OUT_FIELDS anpassen), CLI score-Subcommand, requirements += anthropic, dann pytest (LLM gemockt — KEIN echter Call), dann Frontend, dann vite build. Häufig committen, push agent/agent-3, Master merged via PR.
+Agent-3 (Branch agent/agent-3): LLM-Gewichtung der Events (Hybrid Taxonomie+Intent) per Claude Haiku. Implementierung LÄUFT. Fertig: backend/app/enrichment/taxonomy.py (12 Topic-Felder web_frontend/backend_cloud/data_ai/devops_platform/security/mobile/embedded_iot/product_ux/career_recruiting/community_networking/business_startup/research_academia + 4 Intent-Achsen deep_tech/recruiting/vendor_sales/networking als Slug->Label dicts + SLUGS-Tupel) und backend/app/enrichment/score.py (_call_llm getrennt von pure _normalize; _call_llm nutzt anthropic.Anthropic + settings.score_model + output_config json_schema mit enum-constrained topics[]/intents[]-Listen + confidence/evidence; _normalize droppt off-taxonomy + NEAR_ZERO<2, renormalisiert je Achse auf Summe 100, confidence clamp 0..1; is_enabled()=bool(anthropic_api_key) graceful, THIN_TEXT_MIN=120, text_hash sha256, build_text). DATEI-EIGENTUMS-GRENZE: Agent-2 arbeitet parallel am Quellen-/Sichtbarkeits-Badge in denselben Frontend-Dateien — ich fasse NUR weightBar/tagWeights/PLACEHOLDER_WEIGHTS in eventDisplay.js + .intent-Block/bar-Computed in EventCard.vue + Backend-Enrichment an; NICHT distinctSources/sourceMeta/Quellen-Badge/Rail-Boxen. **Nächster Schritt:** score.py um score_event(session,event)-Orchestrierung erweitern (THIN_TEXT_MIN-Guard, scored_text_hash-Cache-Vergleich -> skip wenn unverändert, _normalize-Ergebnis auf Event persistieren) + enrichment/__init__.py; dann models.py Event += topic_weights/intent_weights JSON + score_confidence float + score_model str + scored_text_hash str; config.py += anthropic_api_key='' + score_model='claude-haiku-4-5'; events.py EventOut += topic_weights/intent_weights/score_confidence (test_events_api EVENT_OUT_FIELDS anpassen); CLI score-Subcommand in ingest/__main__.py; requirements.txt += anthropic; dann pytest (LLM via _call_llm gemockt, KEIN echter Call; _normalize-Summe; hash-idempotenz; EventOut-Form); dann Frontend (eventDisplay.js Taxonomie-Farbkarte + weightBar echte topic_weights sonst Tag sonst PLACEHOLDER behalten + intentMix; EventCard.vue .intent echte Verteilung + geschätzt-Marker bei niedriger confidence); dann vite build. Häufig committen, push agent/agent-3, Master merged via PR.
 
 ## active_plans
 
@@ -53,11 +53,11 @@ Agent-3 (Branch agent/agent-3): LLM-Gewichtung der Events (Hybrid Taxonomie+Inte
 
 ## Iteration History
 
-- **2026-06-25** · event-radar-slice1 · Onboarding, Stack-Lock (vue-vite+fastapi-postgres), Event-Radar-Rebrand+Logo, Architektur+Connector-Vault-Doc, Slice-1-Plan
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
 - **2026-06-26** · agent3-llm-weighting · Rebase auf origin/master, sync+venv-Fix (bs4), Auftrag LLM-Gewichtung gelesen, vollständiges Implementierungs-Design festgelegt (noch kein Code)
+- **2026-06-26** · agent3-enrichment-modules · enrichment/{taxonomy,score}.py gebaut (12 Topics + 4 Intents, _call_llm/_normalize getrennt, Haiku structured output); NOTES-Triage erledigt; Rotation bei 282K
 
 ## backlog
 
