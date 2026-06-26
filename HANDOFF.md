@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent-2-scraper-research
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: done · pr-open · awaiting-brief
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**AGENT-2 (Branch agent/agent-2) — Recherche-Brief `task-research-scrapers` abgeschlossen, PR offen (Master merged).** `documentation/features/scraper-sources-research.md` geschrieben [e3c27f7]: HTML-Eventquellen Mainfranken ohne RSS/ICS, die einen Scraper bräuchten. 4 parallele Web-Recherchen, Seiten real abgerufen; 8 neue Kandidaten bewertet (Static-vs-SPA, Felder, Playwright, Wert/Aufwand) + priorisierte Empfehlung. **Kernbefund:** ZDI/AI-Week/THWS/THWS-FIW/Eventbrite/Gründerzentren sind bereits Code-Adapter → in der Doc als redundant markiert (Agent-5 baut sie nicht neu). Genuine Neu-Lücken (Empfehlung, alle statisch, kein Playwright): Informatik-Institut Uni Wü, KI-Regio, Startbahn27 (Schweinfurt), GIM-Aggregator. Reine Recherche, kein Code. Brief nach `_scrape/processed/`. **Hinweis:** `git rebase origin/master` ersetzte HANDOFF.md erneut durch Masters Version (Rebase-Eigenheit — `merge=ours` greift nur bei Merge); agent-2-HANDOFF aus 1129570 wiederhergestellt. **Vorheriger Brief:** enrichment-Refactor → PR#47 (offen). **Nächster Schritt:** Auf den nächsten Brief von Master warten (_scrape/inbox/). Bei Session-Start ohne neuen Brief: Session parken und melden — keine Arbeit erfinden.
 
 ## active_plans
 
@@ -57,11 +55,11 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent-2-tech-doc-cut · Refactor-Serie (P2-hygiene, keyword-tuning+feeds, P1.3-logging, P2-dedup, date-helper-merge) + Tech-Doku-README auf aktuellen Stand; alle via PR an Master, pytest grün
 
 ## backlog
 
 - documentation/features/event-radar-architecture.md schreiben (inkl. Ingestion/Connector-Sektion, ref Vault patterns/data-integration/connector-architecture.md)
-- documentation/technical/README.md mit Nomenklatur + Dev-Env füllen
 - uncommittete Änderungen (Logo/Rename/frontend/config/plans) committen sobald Git-Flow geklärt
 ## landmarks
 
