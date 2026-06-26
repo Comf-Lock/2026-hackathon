@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent-2-p2-dedup
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: done, ready-to-merge · P2-dedup-done · awaiting-brief
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,11 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
+**AGENT-2 (Branch agent/agent-2) — P2 Refactor (Entdoppelung `_utcnow` + Fetch-Dedup) abgeschlossen & gepusht [b457c51].** Rebased auf origin/master (Master hat frühere agent-2-PRs gemergt — Secrets-Guard ist jetzt upstream). (1) Neuer util `app/_time.py` `utcnow()` → `models.py` + `ingest/core.py` importieren daraus (lokale `_utcnow`-Defs entfernt). (2) Neuer util `app/ingest/adapters/_fetch.py` `fetch_pages_deduped(urls, parse)` → `meetup.py` + `eventbrite_wue.py` nutzen ihn statt copy-pasteter dedup-while-fetch-Schleife. Verhalten unverändert. pytest 118 grün. Branch @ b457c51, Tree clean. **Nächster Schritt:** Auf den nächsten Brief von Master warten (`_scrape/inbox/`). Bei Session-Start ohne neuen Brief: Session parken und melden.
 
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+> **Scope-Notiz:** `events.py` hat kein inline `now()` (dünner Router) → unverändert. Weitere `_utcnow`-Kopien in `enrichment/attendance.py` + `events_service.py:51` sind Agent-3-Bereich (laut Brief out-of-scope) → bewusst gelassen; könnten in einem späteren Agent-3-Refactor ebenfalls auf `app/_time.utcnow` gezogen werden.
+>
+> Frühere agent-2-Arbeit (gemergt/gepusht): Visibility-Dedup, P0.4, P0.3, P1.2, P2 (auth UserOut + Secrets-Guard), Broad-Feed-Keyword-Tuning + 3 Feeds, P1.3 (Logging/Fehler-Sichtbarkeit).
 
 ## active_plans
 
@@ -57,6 +59,10 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent-2 P2-backend-hygiene · auth UserOut response_model + Secrets-Prod-Guard (gemergt in master). pytest 85
+- **2026-06-26** · agent-2 keyword-tuning · IT-Keyword-Gate erweitert + 3 Feeds (web_week/nerd2nerd/uni). pytest 101 · @ 547e9af
+- **2026-06-26** · agent-2 P1.3-logging · geocode Netz-except verschmälert + Parse-except geloggt; main.py _configure_logging(). pytest 106 · @ 0b4a3bd
+- **2026-06-26** · agent-2 P2-dedup · _utcnow → app/_time.utcnow (models+core); fetch-dedup → adapters/_fetch.fetch_pages_deduped (meetup+eventbrite). Verhalten unverändert. pytest 118 · @ b457c51 → Master-PR offen
 
 ## backlog
 
