@@ -16,8 +16,8 @@ from collections.abc import Sequence
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _normalize as N
-from ._dates import from_iso, from_iso_date
 from ._fetch import fetch_pages_deduped
+from ._normalize import from_iso, from_iso_date
 
 LISTING_URLS = (
     "https://www.eventbrite.com/b/germany--w%C3%BCrzburg/science-and-tech/",
