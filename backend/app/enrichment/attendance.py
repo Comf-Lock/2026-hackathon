@@ -22,8 +22,8 @@ from __future__ import annotations
 import json
 import logging
 import re
-from datetime import datetime, timezone
 
+from .._time import utcnow
 from ..config import settings
 
 logger = logging.getLogger(__name__)
@@ -36,10 +36,6 @@ _NEXT_RE = re.compile(
 )
 # Keys a Luma payload may use for its public attendee count, in priority order.
 _LUMA_COUNT_KEYS = ("guest_count", "approved_guest_count", "going_count")
-
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 # --- pure extractors -----------------------------------------------------------------------
@@ -216,7 +212,7 @@ def attendance_for_event(session, event) -> str:
 
     if not any(is_luma_source(s) or is_meetup_source(s) for s in sources):
         # Genuinely no popularity source — stamp it so default runs do not reconsider the event.
-        event.attendance_checked_at = _utcnow()
+        event.attendance_checked_at = utcnow()
         session.add(event)
         session.commit()
         return "skipped:no_source"
@@ -228,14 +224,14 @@ def attendance_for_event(session, event) -> str:
         return "skipped:unavailable"
 
     if event.attendee_count == count and event.attendance_source == provider:
-        event.attendance_checked_at = _utcnow()
+        event.attendance_checked_at = utcnow()
         session.add(event)
         session.commit()
         return "unchanged"
 
     event.attendee_count = count
     event.attendance_source = provider
-    event.attendance_checked_at = _utcnow()
+    event.attendance_checked_at = utcnow()
     session.add(event)
     session.commit()
     return "updated"
