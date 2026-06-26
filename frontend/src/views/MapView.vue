@@ -1,13 +1,19 @@
 <script setup>
-// Public map view (logged out + in). Renders events with coordinates as markers on an
-// OpenStreetMap (Leaflet) map. Pulls events through the single useEvents data layer (limit=100, a
-// broad window) and renders the located ones imperatively. Neutral CSS pins (divIcon) so we don't
-// depend on Leaflet's bundler-fragile marker images and don't reach into eventDisplay.js.
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
+// Public map view (logged out + in). Two columns: an OpenStreetMap (Leaflet) map of events with
+// coordinates, plus a compact side-list of ALL relevant events. Clicking a located item flies the
+// map to its marker and opens the popup; events without coordinates are listed but greyed.
+//
+// Data comes through the single useEvents layer (limit=100). When a logged-in user has a profile
+// with interests, the list/markers can be filtered to those interests (toggle); otherwise all found
+// events are shown. Neutral CSS pins (divIcon) — no marker-image bundling, no reach into
+// eventDisplay.js. useEvents is consumed, not modified.
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEvents } from '../composables/useEvents'
-import { MONTHS_SHORT, dayKey, hhmm } from '../calendar/calendarRange'
+import { api } from '../api'
+import { formatDateLabel } from '../calendar/calendarRange'
+import MapEventList from '../map/MapEventList.vue'
 
 // Mainfranken / Würzburg as the default focus when there's nothing to fit to.
 const WUERZBURG = [49.7913, 9.9534]
@@ -15,24 +21,44 @@ const WUERZBURG = [49.7913, 9.9534]
 // A broad window so the map shows everything geocoded so far, not just "next 20".
 const { events, total, loading, error, load } = useEvents({ limit: 100 })
 
+// --- Profile filter (optional, read-only) ----------------------------------------------------
+const profileInterests = ref([])
+const profileFilterOn = ref(false)
+const hasProfile = computed(() => profileInterests.value.length > 0)
+
+async function loadProfile() {
+  try {
+    const p = await api('/api/profile') // 401 when logged out → caught, no profile filter
+    profileInterests.value = Array.isArray(p?.interests) ? p.interests : []
+    profileFilterOn.value = profileInterests.value.length > 0 // default on when we have interests
+  } catch {
+    profileInterests.value = []
+    profileFilterOn.value = false
+  }
+}
+
+// Events to show: profile-filtered (tags ∩ interests) when the toggle is on, else all found.
+const displayEvents = computed(() => {
+  if (!profileFilterOn.value || !hasProfile.value) return events.value
+  const wanted = profileInterests.value.map((s) => String(s).toLowerCase())
+  return events.value.filter((e) =>
+    (e.tags || []).some((t) => wanted.includes(String(t).toLowerCase())),
+  )
+})
+
 const located = computed(() =>
-  events.value.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number'),
+  displayEvents.value.filter((e) => typeof e.lat === 'number' && typeof e.lng === 'number'),
 )
 const markerCount = computed(() => located.value.length)
-const noCoordsCount = computed(() => events.value.length - located.value.length)
+const noCoordsCount = computed(() => displayEvents.value.length - located.value.length)
 
+const selectedId = ref(null)
+
+// --- Leaflet (kept out of Vue's reactivity) --------------------------------------------------
 let map = null
 let mapEl = null
 let markerLayer = null
-
-// TZ-safe (string-slice) date label for the popup — consistent with calendarRange.
-function dateLabel(iso) {
-  const d = dayKey(iso)
-  if (!d) return 'Termin offen'
-  const [y, m, day] = d.split('-')
-  const t = hhmm(iso)
-  return `${Number(day)}. ${MONTHS_SHORT[Number(m) - 1]} ${y}${t ? `, ${t}` : ''}`
-}
+const markersById = {}
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -42,7 +68,7 @@ function escapeHtml(s) {
 
 function popupHtml(e) {
   const title = escapeHtml(e.title)
-  const when = escapeHtml(dateLabel(e.start))
+  const when = escapeHtml(formatDateLabel(e.start))
   const place = escapeHtml([e.venue_name, e.city].filter(Boolean).join(', '))
   const link = e.url
     ? `<a href="${escapeHtml(e.url)}" target="_blank" rel="noopener">Zum Event ↗</a>`
@@ -58,21 +84,42 @@ const pinIcon = L.divIcon({
   popupAnchor: [0, -9],
 })
 
-// Draw a marker per located event into a dedicated layer (cleared on each render) and fit bounds.
+// (Re)draw markers for the current display set into a dedicated layer and fit bounds.
 function renderMarkers() {
   if (!map) return
   if (markerLayer) markerLayer.clearLayers()
   else markerLayer = L.layerGroup().addTo(map)
+  for (const k of Object.keys(markersById)) delete markersById[k]
 
   const bounds = []
   for (const e of located.value) {
     const m = L.marker([e.lat, e.lng], { icon: pinIcon })
     m.bindPopup(popupHtml(e))
+    m.on('popupopen', () => { selectedId.value = e.id })
     markerLayer.addLayer(m)
+    markersById[e.id] = m
     bounds.push([e.lat, e.lng])
   }
   if (bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
 }
+
+// Side-list item clicked → fly to its marker and open the popup.
+function focusEvent(e) {
+  const m = markersById[e.id]
+  if (!map || !m) return
+  selectedId.value = e.id
+  map.flyTo([e.lat, e.lng], Math.max(map.getZoom(), 13), { duration: 0.6 })
+  m.openPopup()
+}
+
+// Hover sync: highlight the corresponding marker while hovering its list item.
+function hoverEvent(e) {
+  const el = e && markersById[e.id]?.getElement()
+  document.querySelectorAll('.map-pin.hover').forEach((n) => n.classList.remove('hover'))
+  if (el) el.classList.add('hover')
+}
+
+watch(displayEvents, renderMarkers, { flush: 'post' })
 
 onMounted(async () => {
   map = L.map(mapEl, { center: WUERZBURG, zoom: 10, scrollWheelZoom: true })
@@ -80,7 +127,7 @@ onMounted(async () => {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
   }).addTo(map)
-  await load()
+  await Promise.all([load(), loadProfile()])
   renderMarkers()
 })
 
@@ -95,23 +142,37 @@ onBeforeUnmount(() => {
       <h1 class="title">Karte</h1>
       <span class="count" v-if="loading">lädt…</span>
       <template v-else>
-        <span class="count">{{ markerCount }} Event{{ markerCount === 1 ? '' : 's' }} auf der Karte</span>
-        <span v-if="noCoordsCount" class="hint">· {{ noCoordsCount }} ohne Ort werden nicht angezeigt</span>
+        <span class="count">{{ markerCount }} auf der Karte</span>
+        <span v-if="noCoordsCount" class="hint">· {{ noCoordsCount }} ohne Ort</span>
       </template>
+      <label v-if="hasProfile" class="profile-toggle">
+        <input type="checkbox" v-model="profileFilterOn" />
+        Nach meinem Profil
+      </label>
     </div>
 
     <p v-if="error" class="state err">Konnte Events nicht laden (API nicht erreichbar).</p>
 
-    <div class="mapbox">
-      <div ref="mapEl" class="leaflet-host"></div>
-      <!-- Empty/sparse overlay: the map still renders (centered on Würzburg), just no markers. -->
-      <div v-if="!loading && !error && markerCount === 0" class="overlay">
-        <div class="card">
-          <strong>Noch keine Event-Koordinaten</strong>
-          <p v-if="total">{{ total }} Event{{ total === 1 ? '' : 's' }} vorhanden, aber {{ noCoordsCount }} ohne Geo-Daten — Geocoding läuft serverseitig.</p>
-          <p v-else>Sobald Events mit Ort vorliegen, erscheinen sie hier als Marker.</p>
+    <div class="maplayout">
+      <div class="mapbox">
+        <div ref="mapEl" class="leaflet-host"></div>
+        <!-- Empty/sparse overlay: the map still renders (centered on Würzburg), just no markers. -->
+        <div v-if="!loading && !error && markerCount === 0" class="overlay">
+          <div class="card">
+            <strong>Noch keine Event-Koordinaten</strong>
+            <p v-if="displayEvents.length">{{ displayEvents.length }} Event(s) gelistet, aber {{ noCoordsCount }} ohne Geo-Daten — Geocoding läuft serverseitig.</p>
+            <p v-else>Sobald Events mit Ort vorliegen, erscheinen sie hier als Marker.</p>
+          </div>
         </div>
       </div>
+
+      <MapEventList
+        class="side"
+        :events="displayEvents"
+        :selected-id="selectedId"
+        @select="focusEvent"
+        @hover="hoverEvent"
+      />
     </div>
   </div>
 </template>
@@ -122,15 +183,26 @@ onBeforeUnmount(() => {
 .title { font-size: 20px; margin: 0 6px 0 0; letter-spacing: -.3px; }
 .count { color: var(--muted); font-size: 13px; font-weight: 600; }
 .hint { color: var(--faint); font-size: 12.5px; }
+.profile-toggle { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 600; cursor: pointer; }
 .state { color: var(--muted); font-size: 14px; }
 .state.err { color: var(--accent); }
 
+/* Two columns: wide map + narrow side-list. Both share one height; the list scrolls. */
+.maplayout { display: grid; grid-template-columns: 1fr 320px; gap: 14px; height: calc(100vh - 200px); min-height: 380px; }
 .mapbox { position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
-.leaflet-host { height: calc(100vh - 200px); min-height: 360px; width: 100%; }
+.leaflet-host { height: 100%; width: 100%; }
+.side { min-height: 0; }
 
 .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 500; }
 .overlay .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; box-shadow: var(--shadow); max-width: 340px; text-align: center; pointer-events: auto; }
 .overlay .card p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+
+/* Narrow screens: stack the list under the map. */
+@media (max-width: 880px) {
+  .maplayout { grid-template-columns: 1fr; height: auto; }
+  .leaflet-host { height: 56vh; min-height: 320px; }
+  .side { height: auto; max-height: 50vh; }
+}
 </style>
 
 <!-- Unscoped: the divIcon markup is injected by Leaflet outside this component's scope. -->
@@ -139,6 +211,8 @@ onBeforeUnmount(() => {
   display: block; width: 16px; height: 16px; border-radius: 50%;
   background: var(--accent, #b8324f); border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(20, 24, 31, .4);
+  transition: transform .12s ease;
 }
+.map-pin.hover .dot { transform: scale(1.45); }
 .mappop a { color: var(--accent, #b8324f); font-weight: 700; text-decoration: none; }
 </style>
