@@ -1,41 +1,13 @@
-// Pure date helpers for the calendar view — no Vue, no API. Kept separate so the range/grid
-// math is trivially testable and the view stays about rendering.
+// Calendar grid + range math for the calendar view — no Vue, no API. Kept separate from the shared
+// display formatting (lib/eventFormat.js) so this stays about the week/month/year grid geometry.
 //
-// Event grouping is string-based: an ISO start like "2026-07-18T19:00:00+02:00" is bucketed by
-// its first 10 chars (the Europe/Berlin calendar day) and shown at chars 11–16 (HH:MM). This
-// matches how useEventSearch compares date_from/date_to and sidesteps timezone-shift bugs that
-// `new Date(iso)` grouping would introduce in other browser timezones.
+// The shared date constants + string-slice formatters (MONTHS, ymd, dayKey, hhmm, formatDateLabel)
+// now live in lib/eventFormat.js — the single source of truth. They are re-exported here so the
+// calendar view keeps importing everything it needs from one place.
 
-export const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
-export const MONTHS = [
-  'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
-  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember',
-]
-export const MONTHS_SHORT = [
-  'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez',
-]
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, dayKey, formatDateLabel, hhmm, ymd } from '../lib/eventFormat'
 
-// --- formatting -----------------------------------------------------------------------------
-// Local Y-M-D string (date constructed at local midnight, so local getters are correct).
-export function ymd(d) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-export const dayKey = (iso) => (iso || '').slice(0, 10)
-export const hhmm = (iso) => (iso || '').slice(11, 16)
-
-// "14. Jul 2026, 18:30" — TZ-safe (string-slice, no `new Date`) human label, shared by the map
-// popup and the map side-list so the two never drift.
-export function formatDateLabel(iso) {
-  const d = dayKey(iso)
-  if (!d) return 'Termin offen'
-  const [y, m, day] = d.split('-')
-  const t = hhmm(iso)
-  return `${Number(day)}. ${MONTHS_SHORT[Number(m) - 1]} ${y}${t ? `, ${t}` : ''}`
-}
+export { MONTHS, MONTHS_SHORT, WEEKDAYS, dayKey, formatDateLabel, hhmm, ymd }
 
 // --- arithmetic -----------------------------------------------------------------------------
 export function addDays(d, n) {

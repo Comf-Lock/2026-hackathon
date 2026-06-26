@@ -6,6 +6,7 @@
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
 import { computed, ref } from 'vue'
 import { cleanDescription, distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
+import { formatDateLabel, formatPlace } from '../lib/eventFormat'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -17,20 +18,8 @@ const props = defineProps({
 
 const emit = defineEmits(['toggle-save', 'require-login'])
 
-const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez']
-
-const dateLabel = computed(() => {
-  const d = new Date(props.event.start)
-  if (Number.isNaN(d.getTime())) return 'Termin offen'
-  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
-  return `${d.getDate()}. ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${time}`
-})
-
-const place = computed(() => {
-  const e = props.event
-  if (e.is_online) return 'Online'
-  return [e.venue_name, e.city].filter(Boolean).join(', ') || 'Ort offen'
-})
+const dateLabel = computed(() => formatDateLabel(props.event.start))
+const place = computed(() => formatPlace(props.event))
 
 // Cleaned, readable description (entities decoded, real line breaks, whitespace normalised).
 const desc = computed(() => cleanDescription(props.event.description))
@@ -57,7 +46,8 @@ const needsToggle = computed(() => estimatedLines.value > CLAMP_LINES + HIDDEN_L
 
 const tags = computed(() => props.event.tags || [])
 // Real LLM topic weights only, or null when the event has not been scored (then no bar renders —
-// "either rated or not shown"). `bar.estimated` flags a low-confidence but still real read.
+// "either rated or not shown"). The LLM always estimates, so no "geschätzt" marker — the bar stands
+// on its own.
 const bar = computed(() => weightBar(props.event))
 // Real LLM intent distribution (deep-tech / recruiting / sales / networking); empty until scored.
 const intents = computed(() => intentMix(props.event))
@@ -123,7 +113,6 @@ function onSave() {
     <div v-if="bar" class="intent">
       <div class="ihead">
         <span class="t">Themen-Gewichtung</span>
-        <span v-if="bar.estimated" class="ph est">geschätzt</span>
       </div>
       <div class="bar">
         <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
@@ -198,8 +187,6 @@ function onSave() {
 .intent { margin: 14px 0 6px; }
 .intent .ihead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .intent .ihead .t { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--faint); }
-.intent .ihead .ph { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
-.intent .ihead .ph.est { color: #9a6212; background: rgba(217,138,43,.14); border-color: rgba(217,138,43,.4); }
 .legend b { font-weight: 700; color: var(--ink, var(--txt)); }
 .imix { display: flex; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
 .imix .chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); background: var(--chip); border: 1px solid var(--line); border-left-width: 3px; border-radius: 6px; padding: 2px 8px; }
