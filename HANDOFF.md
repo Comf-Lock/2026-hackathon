@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-4
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent-4-refactor-p1-5
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent-4-refactor-p1-5-auth
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,10 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-4: Refactor P1.5 (Auth-Redirect entdoppeln) **fertig + gepusht** [f80c74d, auf rebased origin/master]. ProfileView.vue von eigenem `fetchMe()`+`router.replace('/')` und 401→Redirect befreit; ungenutzte Imports useRouter/useAuth raus. Router-Guard (`router.js`) ist jetzt alleinige Auth-Quelle; `router.js` + `DashboardView.vue` waren bereits konform (DashboardView dokumentiert Guard-Ownership im Kommentar) → keine Änderung dort. Verhalten unverändert (401 fällt nun in generischen Error-Pfad — Edge-Case Session-Ablauf; Normalfall gatet ohnehin der Guard vor Render). Nur `frontend/src/views/ProfileView.vue` geändert (1+/15-), vite build grün (61 modules). Brief → `_scrape/processed/`.
+> Vorherige Arbeit (bleibt PR-ready): drei View-Tabs /calendar [2ad1d5d], /map [1bbf33b] inkl. MapEventList [fe1c441]; Architektur-Audit `plans/refactor-architecture-audit.md` [e0e2478].
+> **Hinweis HANDOFF-Drift:** `git rebase` honoriert `HANDOFF.md merge=ours` NICHT → der Rebase hatte die agent-4-HANDOFF durch master's Fassung ersetzt; aus `ORIG_HEAD` wieder branch-lokal hergestellt (working_directory korrekt auf .../agent-4). Bei künftigen Rebases beachten.
+> **Nächster Schritt:** Master merged agent/agent-4 via PR (GitHub ignoriert merge=ours → master-HANDOFF beim Merge manuell auf master-Fassung auflösen, wie bei PR#8). Agent-4 wartet danach auf neuen Brief.
 
 ## active_plans
 
@@ -57,6 +58,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent-4 calendar+map+sidelist+audit · /calendar (Woche/Monat/Jahr) + /map (Leaflet/OSM) mit Event-Seitenliste, click-to-fly, Profil-Filter über useEvents [fe1c441]; Architektur-Audit → Refactor-Plan [e0e2478], Info an Master-Inbox. agent/agent-4 gepusht → Master-PR(s)
 
 ## backlog
 
