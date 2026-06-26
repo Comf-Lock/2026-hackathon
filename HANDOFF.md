@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-26-agent-2-visibility-dedup-plan
+last_updated: 2026-06-26-agent-2-visibility-dedup-done
 schema_version: "0.4"
-status: agent-2 · visibility-dedup · planned
+status: agent-2 · visibility-dedup · done, ready-to-merge
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,9 @@ status: agent-2 · visibility-dedup · planned
 
 ## current_task
 
-**AGENT-2 (Branch agent/agent-2) — Sichtbarkeit: Cross-Source-Dedup + Reframe.** Auftrag: _scrape/inbox/task-visibility-dedup.md. agent/agent-2 wurde auf origin/master rebased (master hat jetzt Rich-Card, Bookmarks, Feed-Kanal, lib/eventDisplay.js; searchKit.js zeigt auf Agent-1s ECHTE Komponenten). Vollständiger, präziser Umsetzungsplan liegt im Journal _scrape/.session/journal-2026-06-26.md (Eintrag 09:26). Umsetzung NOCH NICHT begonnen (Rotation an Lese/Plan-Grenze). **Nächster Schritt:** Plan abarbeiten — TEIL A Backend: NEU backend/app/ingest/dedup.py (reine Funktionen normalize_title/normalize_location/event_fingerprint/record_fingerprint; lowercase+Akzente-strip+Füllwörter-raus, fp=sha256(normtitle|start.date|location)); Event.dedup_key-Spalte (indexed); core.upsert_event um Fingerprint-Merge erweitern ((source,extid)-Check bleibt erste Idempotenz-Linie; danach per dedup_key bestehendes Event suchen -> neue EventSource anhängen + fehlende Felder füllen, sonst neues Event); NEU tests/test_dedup.py (2 Quellen gleicher fp -> 1 Event/2 Sources, Re-Run idempotent, anderes Datum -> getrennt); pytest grün; commit 'feat(ingest): cross-source dedup'. TEIL B Frontend: eventDisplay.visibilityTier(count); EventCard Stufen-Badge (1=Exklusiv gelistet, 2-3=Mehrfach gelistet·N, 4+=Hohe Sichtbarkeit·N) statt Blindspot, amber+⚡ raus, Header 'Sichtbarkeit · N Quellen'; DashboardView blindspotEvents->exclusiveEvents + Rail positiv; vite build grün; commit 'feat(ui): visibility tiers'. Dann push agent/agent-2 + HANDOFF + Brief nach _scrape/processed/. Master merged via PR (master protected). Verifikation: 'PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests' + 'npm run build --prefix frontend'.
+**AGENT-2 (Branch agent/agent-2) — Sichtbarkeit: Cross-Source-Dedup + Reframe. FERTIG, ready-to-merge.** Beide Teile umgesetzt, gepusht (a1daf38..3cb7a5a). TEIL A [f567039]: backend/app/ingest/dedup.py (reine Fingerprint-Funktionen), Event.dedup_key (indexed), core.upsert_event mit 2. Idempotenz-Linie (dedup_key-Merge: Zweitquelle hängt EventSource an + backfillt nur leere Felder), tests/test_dedup.py (8 Tests). TEIL B [3cb7a5a]: eventDisplay.visibilityTier(count), EventCard tier-Badge statt amber/⚡-Blindspot, Header 'Sichtbarkeit · N Quellen', DashboardView exclusiveEvents + Rail '★ Exklusiv gelistet' positiv. Verifikation grün: pytest 57 (49+8), vite build (47 Module), Smoke-Idempotenz hält.
+
+**Nächster Schritt (Master/Lars):** agent/agent-2 via PR nach master mergen (master protected). Browser-Visualcheck der Tier-Badges (exclusive/multi/high) + Dashboard-Rail beim Merge — headless hier wg. Auth-Gate nicht prüfbar. Hinweis: backend/.venv brauchte nach Rebase `pip install -r backend/requirements.txt -r backend/requirements-dev.txt` (bs4 fehlte).
 
 ## active_plans
 
@@ -56,6 +58,7 @@ status: agent-2 · visibility-dedup · planned
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
 - **2026-06-26** · agent-2 visibility-dedup-plan · auf origin/master rebased, Brief + relevanten Code analysiert, präzisen Umsetzungsplan (Cross-Source-Dedup Backend + Sichtbarkeits-Reframe Frontend) im Journal fixiert; Umsetzung folgt
+- **2026-06-26** · agent-2 visibility-dedup-done · Plan umgesetzt: ingest/dedup.py + Event.dedup_key + upsert_event-Merge + test_dedup.py [f567039]; visibilityTier + EventCard/DashboardView-Reframe (Blindspot→Sichtbarkeit, amber/⚡ raus) [3cb7a5a]. pytest 57 grün, vite build grün. agent/agent-2 gepusht → Master-PR offen
 
 ## backlog
 
