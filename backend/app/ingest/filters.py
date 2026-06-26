@@ -13,17 +13,9 @@ from __future__ import annotations
 
 import re
 from functools import lru_cache
-from math import asin, cos, radians, sin, sqrt
 
+from ..geo import haversine_km
 from .types import GeoScope, RawEventRecord
-
-
-def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """Great-circle distance in km between two points."""
-    r = 6371.0
-    dlat, dlng = radians(lat2 - lat1), radians(lng2 - lng1)
-    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
-    return 2 * r * asin(sqrt(a))
 
 
 def passes_geo(record: RawEventRecord, scope: GeoScope) -> tuple[bool, str]:
@@ -31,7 +23,7 @@ def passes_geo(record: RawEventRecord, scope: GeoScope) -> tuple[bool, str]:
         return True, "online"
 
     if record.lat is not None and record.lng is not None:
-        dist = _haversine_km(scope.center_lat, scope.center_lng, record.lat, record.lng)
+        dist = haversine_km(scope.center_lat, scope.center_lng, record.lat, record.lng)
         if dist <= scope.radius_km:
             return True, f"within {dist:.0f}km"
         return False, f"{dist:.0f}km > {scope.radius_km}km radius"

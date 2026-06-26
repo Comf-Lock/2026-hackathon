@@ -9,7 +9,11 @@ import SearchMask from '../components/SearchMask.vue'
 import EventList from '../components/EventList.vue'
 
 const { login } = useAuth()
-const { filters, events, total, loading, load } = useEvents()
+const { filters, events, total, loading, load, center, locating, useMyLocation } = useEvents({ geo: true })
+
+// Default the lower date bound to today — the index sells *upcoming* events; past ones stay reachable
+// by clearing the field. Radius then narrows "what's on near me".
+filters.value.dateFrom = new Date().toISOString().slice(0, 10)
 
 // Show results immediately — visitors see events before typing anything.
 onMounted(load)
@@ -33,7 +37,14 @@ onMounted(load)
 
     <section class="finder">
       <h2 class="section-title">Events durchsuchen</h2>
-      <SearchMask v-model="filters" @search="load" />
+      <SearchMask
+        v-model="filters"
+        :geo="true"
+        :locating="locating"
+        :has-center="!!center"
+        @search="load"
+        @locate="useMyLocation"
+      />
       <EventList
         :events="events"
         :loading="loading"

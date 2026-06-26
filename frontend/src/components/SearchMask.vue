@@ -6,8 +6,13 @@ import { reactive, watch } from 'vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
+  // Radius search: when on, show the km input + "near me" button. The centre itself is resolved by
+  // useEvents (profile home or geolocation) — this component only emits the controls.
+  geo: { type: Boolean, default: false },
+  locating: { type: Boolean, default: false }, // geolocation request in flight
+  hasCenter: { type: Boolean, default: false }, // a centre is resolved → radius is actually applied
 })
-const emit = defineEmits(['update:modelValue', 'search'])
+const emit = defineEmits(['update:modelValue', 'search', 'locate'])
 
 // Local working copy; mirror back to the parent via update:modelValue. Re-sync if the parent
 // replaces the bound object (e.g. a "reset filters" action).
@@ -26,6 +31,8 @@ function onSubmit() {
   emit('search', { ...local })
 }
 function reset() {
+  // Keep the radius value (a search preference, not a query term) so resetting doesn't silently
+  // widen the geo scope.
   Object.assign(local, { q: '', city: '', tag: '', dateFrom: '', dateTo: '', isOnline: false })
   onSubmit()
 }
@@ -65,6 +72,24 @@ function reset() {
         <input v-model="local.isOnline" type="checkbox" @change="onInput">
         <span>Nur Online</span>
       </label>
+
+      <!-- Radius (Luftlinie) — only when the host enables geo search -->
+      <template v-if="geo">
+        <label class="f radius">
+          <span>Umkreis: {{ local.radiusKm }} km</span>
+          <input
+            v-model.number="local.radiusKm" type="range" min="5" max="100" step="5"
+            @input="onInput"
+          >
+        </label>
+        <button
+          class="locate" type="button" :class="{ active: hasCenter }"
+          :disabled="locating" @click="emit('locate')"
+        >
+          📍 {{ locating ? 'Ortung…' : (hasCenter ? 'In meiner Nähe' : 'Standort nutzen') }}
+        </button>
+      </template>
+
       <button class="reset" type="button" @click="reset">Zurücksetzen</button>
     </div>
   </form>
@@ -85,6 +110,12 @@ function reset() {
 .f input:focus { border-color: var(--accent); }
 .f.check { flex-direction: row; align-items: center; gap: 7px; color: var(--ink); font-size: 13px; padding-bottom: 7px; }
 .f.check input { width: 15px; height: 15px; accent-color: var(--accent); }
+.f.radius { min-width: 160px; }
+.f.radius input[type="range"] { accent-color: var(--accent); width: 100%; }
+.locate { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12.5px; font-family: inherit; cursor: pointer; padding: 7px 12px; align-self: flex-end; }
+.locate:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.locate.active { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.locate:disabled { opacity: .6; cursor: progress; }
 .reset { margin-left: auto; background: none; border: none; color: var(--faint); font-size: 12.5px; font-family: inherit; cursor: pointer; padding: 7px 4px; }
 .reset:hover { color: var(--accent); }
 @media (max-width: 560px) { .reset { margin-left: 0; } }

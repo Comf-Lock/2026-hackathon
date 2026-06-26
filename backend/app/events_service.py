@@ -15,6 +15,7 @@ from datetime import date, datetime, time, timezone
 from sqlalchemy import case, func, or_
 from sqlmodel import Session, select
 
+from .geo import haversine_km
 from .models import Event, EventSource
 from .schemas import EventOut, EventSearchResponse, SourceOut
 
@@ -61,6 +62,9 @@ def search_events(
     date_to: date | None = None,
     is_online: bool | None = None,
     upcoming: bool = False,
+    center_lat: float | None = None,
+    center_lng: float | None = None,
+    radius_km: float | None = None,
     limit: int = 20,
     offset: int = 0,
 ) -> EventSearchResponse:
@@ -73,7 +77,15 @@ def search_events(
 
     ``upcoming=True`` drops past events (keeps ongoing + upcoming). An explicit ``date_from``/``date_to``
     range overrides the default lower bound.
+
+    **Radius search:** ``center_lat``/``center_lng``/``radius_km`` are only active together. When set,
+    results are filtered to events whose ``lat``/``lng`` lie within ``radius_km`` air-line (Haversine)
+    of the centre; events *without* coordinates are excluded (we cannot prove they are in range). The
+    distance check runs in Python over the structurally-filtered rows — same pattern as the tag gate,
+    since ``lat``/``lng`` are plain floats and at regional volumes this is correct and cheap. Without
+    a centre/radius the behaviour is unchanged.
     """
+    radius_active = center_lat is not None and center_lng is not None and radius_km is not None
     conditions = []
     if q:
         like = f"%{q}%"
@@ -112,12 +124,23 @@ def search_events(
         )
     )
 
-    if tag:
-        wanted = set(tag)
+    if tag or radius_active:
+        # Any Python-side gate (tag membership and/or radius) forces loading the structurally-filtered
+        # rows and paginating in Python — SQL count/offset can't express these portably.
         rows = session.exec(ordered).all()
-        matched = [e for e in rows if wanted & set(e.tags or [])]
-        total = len(matched)
-        page = matched[offset : offset + limit]
+        if tag:
+            wanted = set(tag)
+            rows = [e for e in rows if wanted & set(e.tags or [])]
+        if radius_active:
+            rows = [
+                e
+                for e in rows
+                if e.lat is not None
+                and e.lng is not None
+                and haversine_km(center_lat, center_lng, e.lat, e.lng) <= radius_km
+            ]
+        total = len(rows)
+        page = rows[offset : offset + limit]
     else:
         total = session.exec(select(func.count()).select_from(Event).where(*conditions)).one()
         page = session.exec(ordered.offset(offset).limit(limit)).all()

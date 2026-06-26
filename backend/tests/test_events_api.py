@@ -146,6 +146,57 @@ def test_limit_capped_at_100(client):
     assert client.get("/api/events", params={"limit": 101}).status_code == 422
 
 
+# --- Radius (Haversine air-line) search -----------------------------------------------------
+# Würzburg centre; Schweinfurt ~37 km NE, Frankfurt ~95 km W, Nürnberg ~90 km SE.
+WUE = (49.7913, 9.9534)
+SCHWEINFURT = (50.0494, 10.2336)
+FRANKFURT = (50.1109, 8.6821)
+
+
+def test_radius_keeps_inside_excludes_outside(client, session):
+    _mk(session, title="In-Wue", lat=WUE[0], lng=WUE[1])
+    _mk(session, title="Near-SW", lat=SCHWEINFURT[0], lng=SCHWEINFURT[1])  # ~37 km → inside 40
+    _mk(session, title="Far-FFM", lat=FRANKFURT[0], lng=FRANKFURT[1])  # ~95 km → outside 40
+
+    params = {"lat": WUE[0], "lng": WUE[1], "radius_km": 40}
+    body = client.get("/api/events", params=params).json()
+    assert body["total"] == 2
+    assert {it["title"] for it in body["items"]} == {"In-Wue", "Near-SW"}
+
+    # A wide radius pulls the far one back in.
+    wide = client.get("/api/events", params={**params, "radius_km": 120}).json()
+    assert wide["total"] == 3
+
+
+def test_radius_excludes_events_without_coordinates(client, session):
+    _mk(session, title="Located", lat=WUE[0], lng=WUE[1])
+    _mk(session, title="NoCoords", lat=None, lng=None)
+    _mk(session, title="OnlineNoCoords", is_online=True, lat=None, lng=None)
+
+    body = client.get("/api/events", params={"lat": WUE[0], "lng": WUE[1], "radius_km": 50}).json()
+    assert body["total"] == 1 and body["items"][0]["title"] == "Located"
+
+
+def test_radius_inactive_when_params_incomplete(client, session):
+    _mk(session, title="A", lat=FRANKFURT[0], lng=FRANKFURT[1])
+    _mk(session, title="B", lat=None, lng=None)
+
+    # No radius params at all → unchanged (both returned, no geo exclusion).
+    assert client.get("/api/events").json()["total"] == 2
+    # lat/lng without radius_km → ignored, behaviour unchanged.
+    assert client.get("/api/events", params={"lat": WUE[0], "lng": WUE[1]}).json()["total"] == 2
+
+
+def test_radius_paginates_filtered_set(client, session):
+    # Five located events all within range → radius + pagination compose.
+    for i in range(5):
+        _mk(session, title=f"R{i}", start=NOW + timedelta(days=i + 1), lat=WUE[0], lng=WUE[1])
+    params = {"lat": WUE[0], "lng": WUE[1], "radius_km": 10, "limit": 2, "offset": 0}
+    body = client.get("/api/events", params=params).json()
+    assert body["total"] == 5  # total reflects the full in-radius set, not the page
+    assert [it["title"] for it in body["items"]] == ["R0", "R1"]
+
+
 def test_get_event_by_id_and_404(client, session):
     ev = _mk(session, title="Detail Me")
     ok = client.get(f"/api/events/{ev.id}")
