@@ -2,6 +2,61 @@
 // Ground-News-style display (source-reconciliation chips, the tag-weighting spectrum bar).
 // Pure functions, no Vue — easy to unit-test and reuse across LandingView + DashboardView.
 
+// --- Description cleanup -------------------------------------------------------------------
+// Scraped descriptions arrive dirty: literal "\n" escape sequences, HTML entities (&amp;,
+// &#8211;, &nbsp;), leftover markup and runaway whitespace. We clean at the display layer (pure,
+// string-only — no DOM) so the fix is frontend-contained and unit-testable; the rendered <p> uses
+// `white-space: pre-line` so the real newlines this produces are honoured. If adapters are found to
+// persist broken text at the source, that is a separate backend follow-up — see HANDOFF.
+
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  ndash: '–', mdash: '—', hellip: '…', laquo: '«', raquo: '»', bull: '•', middot: '·',
+  euro: '€', copy: '©', reg: '®', trade: '™', deg: '°',
+  auml: 'ä', ouml: 'ö', uuml: 'ü', Auml: 'Ä', Ouml: 'Ö', Uuml: 'Ü', szlig: 'ß',
+}
+
+function fromCodePoint(cp) {
+  try {
+    return String.fromCodePoint(cp)
+  } catch {
+    return ''
+  }
+}
+
+function decodeEntities(s) {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => fromCodePoint(parseInt(d, 10)))
+    .replace(/&([a-zA-Z][a-zA-Z0-9]*);/g, (m, name) =>
+      Object.prototype.hasOwnProperty.call(NAMED_ENTITIES, name) ? NAMED_ENTITIES[name] : m,
+    )
+}
+
+// Turn a raw scraped description into clean, readable plain text with real line breaks.
+export function cleanDescription(text) {
+  if (!text) return ''
+  let s = String(text)
+  // 1. Literal escape sequences (backslash-n etc.) that survived a JSON-ish scrape → real breaks.
+  s = s.replace(/\\r\\n|\\n|\\r/g, '\n').replace(/\\t/g, ' ')
+  // 2. Block-level markup → newline, then strip any remaining tags.
+  s = s
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\/\s*(p|div|li|h[1-6])\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+  // 3. Decode HTML entities (numeric + common named).
+  s = decodeEntities(s)
+  // 4. Normalise whitespace: collapse spaces/tabs/nbsp, trim each line, cap blank-line runs.
+  s = s
+    .replace(/[ \t ]+/g, ' ')
+    .split('\n')
+    .map((line) => line.trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+  return s
+}
+
 // adapter (EventSource.source_adapter) -> platform label / icon letter / accent colour.
 // Several meetup_* ICS adapters collapse to one "Meetup" platform in the UI.
 const SOURCE_META = {
