@@ -29,6 +29,13 @@ _NEXT_RE = re.compile(
 _SKIP_STATUS = {"CANCELLED"}
 
 
+def _to_float(value) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _resolve(state: dict, value):
     """Follow an Apollo `{__ref: 'Type:id'}` pointer into the cache; pass through plain dicts."""
     if isinstance(value, dict) and "__ref" in value:
@@ -49,6 +56,23 @@ def _event_to_record(state: dict, ev: dict) -> RawEventRecord | None:
     group = _resolve(state, ev.get("group"))
     is_online = bool(ev.get("isOnline")) or (ev.get("eventType") or "").upper() == "ONLINE"
 
+    # Location: prefer the concrete venue; for an in-person event with a sparse venue fall back to
+    # the group's home location (Meetup keeps lat/lon/city on the Group). Meetup spells longitude
+    # "lon" on the venue/group but "lng" elsewhere — accept both. This gives in-person events real
+    # coordinates straight from the source, so the geocode step only handles what is still missing.
+    lat = _to_float(venue.get("lat"))
+    lng = _to_float(venue.get("lng") or venue.get("lon"))
+    city = venue.get("city") or None
+    if is_online:
+        # Online venues carry an empty city; leave it None so the geo gate uses the online pass.
+        city = None
+        lat = lng = None
+    else:
+        city = city or (group.get("city") or None)
+        if lat is None and lng is None:
+            lat = _to_float(group.get("lat"))
+            lng = _to_float(group.get("lng") or group.get("lon"))
+
     return RawEventRecord(
         source_adapter="meetup",
         external_id=f"meetup:{ev.get('id')}",
@@ -62,8 +86,10 @@ def _event_to_record(state: dict, ev: dict) -> RawEventRecord | None:
         is_online=is_online,
         venue_name=(venue.get("name") or None),
         address=(venue.get("address") or None),
-        # Online venues carry an empty city; leave it None so the geo gate uses the online pass.
-        city=(venue.get("city") or None) if not is_online else None,
+        city=city,
+        postal_code=(venue.get("postalCode") or venue.get("zip") or None) if not is_online else None,
+        lat=lat,
+        lng=lng,
         organizer=(group.get("name") or None),
         url=url,
         language="de",
