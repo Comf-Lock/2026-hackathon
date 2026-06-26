@@ -5,7 +5,7 @@
 // event in, external link out. Reuses the shared eventDisplay helpers and does NOT touch
 // EventCard.vue / eventDisplay.js internals (owned by Agent-3) — it only consumes the pure helpers.
 import { computed, ref, watch } from 'vue'
-import { formatDateLabel } from './calendarRange'
+import { formatDateLabel, formatPlace } from '../lib/eventFormat'
 import { cleanDescription, distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
@@ -14,12 +14,7 @@ const props = defineProps({
   isDefault: { type: Boolean, default: false },
 })
 
-const place = computed(() => {
-  const e = props.event
-  if (!e) return ''
-  if (e.is_online) return 'Online'
-  return [e.venue_name, e.city].filter(Boolean).join(', ') || 'Ort offen'
-})
+const place = computed(() => formatPlace(props.event))
 const tags = computed(() => props.event?.tags || [])
 const desc = computed(() => cleanDescription(props.event?.description))
 const bar = computed(() => (props.event ? weightBar(props.event) : null))
@@ -77,7 +72,7 @@ watch(() => props.event?.id, () => { expanded.value = false })
 
       <!-- Topic weighting — only for LLM-scored events with real topic_weights (no placeholder). -->
       <div v-if="bar" class="intent">
-        <span class="ihead">Themen-Gewichtung<span v-if="bar.estimated" class="est"> · geschätzt</span></span>
+        <span class="ihead">Themen-Gewichtung</span>
         <div class="wbar">
           <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
         </div>
@@ -138,7 +133,6 @@ watch(() => props.event?.id, () => { expanded.value = false })
 
 .intent { margin: 12px 0; }
 .intent .ihead { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); margin-bottom: 6px; }
-.intent .ihead .est { color: #9a6212; }
 .wbar { display: flex; height: 8px; border-radius: 5px; overflow: hidden; background: var(--chip); }
 .wbar i { display: block; height: 100%; }
 .legend { display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap; }
