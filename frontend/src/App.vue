@@ -7,9 +7,12 @@ import { useAuth } from './composables/useAuth'
 const { user, loading, fetchMe, login, logout } = useAuth()
 const route = useRoute()
 
-// Dashboard and landing both use the wide (1240px) shell so the event feed renders at the same
-// column width in both — let the header bar match it so the brand lines up with the content.
-const wideHeader = computed(() => route.name === 'dashboard' || route.name === 'landing')
+// Dashboard, landing and calendar all use the wide (1240px) shell so content lines up under the
+// header bar in every view.
+const wideHeader = computed(() => ['dashboard', 'landing', 'calendar'].includes(route.name))
+
+// "Liste" points logged-in users at their dashboard, visitors at the public index.
+const listTarget = computed(() => (user.value ? '/dashboard' : '/'))
 
 onMounted(() => fetchMe())
 </script>
@@ -21,6 +24,11 @@ onMounted(() => fetchMe())
         <BrandLogo :size="34" />
         <span class="word">Event&nbsp;<span>Radar</span></span>
       </RouterLink>
+
+      <nav class="views">
+        <RouterLink :to="listTarget" class="vlink" :class="{ on: route.name !== 'calendar' }">Liste</RouterLink>
+        <RouterLink to="/calendar" class="vlink" :class="{ on: route.name === 'calendar' }">Kalender</RouterLink>
+      </nav>
 
       <nav class="actions">
         <template v-if="loading">
@@ -74,6 +82,9 @@ header {
   text-decoration: none;
 }
 .brand .word span { color: var(--accent); }
+.views { display: flex; gap: 3px; margin-left: 18px; background: var(--chip); padding: 3px; border-radius: 9px; }
+.vlink { padding: 5px 12px; border-radius: 7px; font-size: 13px; font-weight: 700; text-decoration: none; color: var(--muted); }
+.vlink.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 .actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .muted { color: var(--muted); font-size: 13px; }
 .profile-link {
