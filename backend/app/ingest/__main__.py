@@ -1,9 +1,14 @@
 """CLI entrypoint for the ingestion run: ``python -m app.ingest``.
 
 Examples:
-    python -m app.ingest --dry-run                 # all sources, no DB write
-    python -m app.ingest --source meetup_wue_data  # one source, persisted
-    python -m app.ingest --radius-km 80 --center 49.79,9.95
+    python -m app.ingest                           # = `run` — all sources, persisted
+    python -m app.ingest list                      # show all registered adapters (incl. feeds)
+    python -m app.ingest run --dry-run             # all sources, no DB write
+    python -m app.ingest run --source meetup_wue_data
+    python -m app.ingest run --radius-km 80 --center 49.79,9.95
+
+``list`` shows every registered adapter — code adapters, config feeds (feeds.yaml) and enabled DB
+feeds (feed_sources table) — which is how you confirm a newly added feed registered.
 
 ``--dry-run`` runs the full pipeline (live fetch → filter → upsert) against a throwaway in-memory
 SQLite database, so the report still shows realistic found/kept/new counts while the configured
@@ -86,6 +91,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         description="Fetch Mainfranken IT events from registered source adapters into the DB.",
     )
     parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("run", "list"),
+        default="run",
+        help="'run' (default) ingests; 'list' shows registered adapters incl. feeds",
+    )
+    parser.add_argument(
         "--source",
         action="append",
         dest="sources",
@@ -108,12 +120,41 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _list_adapters() -> int:
+    """Print every registered adapter — code adapters, config feeds and enabled DB feeds."""
+    from .feed_loader import register_db_feeds
+    from .registry import get_adapters
+
+    get_adapters()  # warm: code adapters + config feeds (feeds.yaml)
+    try:
+        session = _persistent_session()
+        try:
+            register_db_feeds(session)
+        finally:
+            session.close()
+    except Exception as exc:  # DB unreachable → still show code + config feeds
+        print(f"(DB feeds unavailable: {exc})")
+
+    adapters = get_adapters()
+    print(f"\n{len(adapters)} registered adapter(s):")
+    print("-" * 56)
+    print(f"{'name':<26}{'broad':>7}  type")
+    print("-" * 56)
+    for a in sorted(adapters, key=lambda x: x.name):
+        kind = type(a).__name__.replace("Adapter", "").replace("Feed", " feed")
+        print(f"{a.name:<26}{str(getattr(a, 'broad', False)):>7}  {kind}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(levelname)-7s %(name)s: %(message)s",
     )
+
+    if args.command == "list":
+        return _list_adapters()
 
     scope = _build_scope(args)
     names = args.sources or None

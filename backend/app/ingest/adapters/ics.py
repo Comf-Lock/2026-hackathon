@@ -298,46 +298,7 @@ class ZdiGenIcsAdapter(BaseAdapter):
 
 
 # --- Self-registration (import side-effect via adapters/__init__) ------------------------------
-# Meetup groups are IT-native → broad=False (no keyword gate). trust_tier 2 (community feed).
-_MEETUP_ICS: list[tuple[str, str, str, list[str]]] = [
-    (
-        "meetup_wue_data",
-        "https://www.meetup.com/wurzburg-data-analytics-meetup/events/ical/",
-        "Würzburg Data & Analytics Meetup",
-        ["meetup", "data", "analytics"],
-    ),
-    (
-        "meetup_wue_softwaredev",
-        "https://www.meetup.com/wuerzburg-software-development/events/ical/",
-        "Modern Software Development Würzburg",
-        ["meetup", "software", "dev"],
-    ),
-    (
-        "meetup_wue_deeplearning",
-        "https://www.meetup.com/Wurzburg-Deep-Learning-Meetup/events/ical/",
-        "Würzburg Deep Learning Meetup",
-        ["meetup", "deep-learning", "ai"],
-    ),
-    (
-        "meetup_wue_frontend",
-        "https://www.meetup.com/front-end-wuerzburg/events/ical/",
-        "FrankenJS / Front-End Würzburg",
-        ["meetup", "frontend", "javascript"],
-    ),
-]
-
-for _name, _url, _organizer, _tags in _MEETUP_ICS:
-    register(
-        ICSFeedAdapter(
-            _name,
-            [_url],
-            broad=False,
-            origin_type="feed",
-            trust_tier=2,
-            default_city="Würzburg",
-            default_organizer=_organizer,
-            default_tags=_tags,
-        )
-    )
-
+# The generic Meetup ICS feeds moved to feeds.yaml (data-driven, see ingest/feed_loader.py).
+# ZdiGenIcsAdapter stays a code adapter: it discovers event ids and pulls a per-event genIcs export,
+# which is not a single-URL calendar a config entry could express.
 register(ZdiGenIcsAdapter())

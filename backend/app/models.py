@@ -112,6 +112,33 @@ class EventSource(SQLModel, table=True):
     raw_payload: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
 
+class FeedSource(SQLModel, table=True):
+    """A runtime-registered RSS/ICS feed — the data-driven feed input channel.
+
+    Mirrors a feeds.yaml entry but lives in the DB so feeds can be added via ``POST /api/feeds``
+    without a code/config change. At ingest time every ``enabled`` row is turned into a generic
+    ICS/RSS adapter (see ingest/feed_loader.register_db_feeds), so its events flow in with
+    ``source_adapter = name`` and ``origin_type = "feed"``. Unique on ``url`` — the same feed is
+    never registered twice.
+    """
+
+    __tablename__ = "feed_sources"
+    __table_args__ = (UniqueConstraint("url", name="uq_feed_source_url"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    type: str  # ics | rss
+    url: str
+    organizer: str | None = None
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    default_city: str | None = None
+    trust_tier: int = 2
+    broad: bool = False
+    enabled: bool = True
+    created_at: datetime = Field(default_factory=_utcnow)
+    created_by: int | None = Field(default=None, foreign_key="users.id")
+
+
 class Bookmark(SQLModel, table=True):
     """A user's saved ("Merken") event. Unique on (user_id, event_id) — saving twice is idempotent."""
 

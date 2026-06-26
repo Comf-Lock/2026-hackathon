@@ -1,0 +1,67 @@
+# Data-driven feed registry — the RSS/ICS input channel.
+#
+# Each entry registers a generic ICSFeedAdapter / RSSFeedAdapter at ingest time, so adding a feed
+# is a config edit, not a code change (see feed_loader.py). These were previously hardcoded
+# `register(...)` calls in adapters/ics.py and adapters/rss.py.
+#
+# Schema per feed:
+#   name:          unique adapter id → becomes EventSource.source_adapter   (required)
+#   type:          ics | rss                                                (required)
+#   url:           feed URL (single)                                        (required)
+#   urls:          [..] multiple ICS calendar URLs (ics only, alt. to url)  (optional)
+#   organizer:     default organizer when the feed entry omits one          (optional)
+#   tags:          default tags merged onto every event from this feed      (optional)
+#   default_city:  city assumed for non-online events lacking one           (optional)
+#   trust_tier:    1=high (institution) … 3=low                             (default 2)
+#   broad:         true → core applies the IT-keyword gate (mixed calendars) (default false)
+#   prefer_title_date: rss only — read the event date from the item title    (default false)
+#
+# ZdiGenIcsAdapter stays a code adapter (discovery + per-event ICS) — deliberately not here.
+
+# --- Meetup group calendars (IT-native → broad=false, no keyword gate) -------------------------
+- name: meetup_wue_data
+  type: ics
+  url: https://www.meetup.com/wurzburg-data-analytics-meetup/events/ical/
+  organizer: "Würzburg Data & Analytics Meetup"
+  tags: [meetup, data, analytics]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: false
+
+- name: meetup_wue_softwaredev
+  type: ics
+  url: https://www.meetup.com/wuerzburg-software-development/events/ical/
+  organizer: "Modern Software Development Würzburg"
+  tags: [meetup, software, dev]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: false
+
+- name: meetup_wue_deeplearning
+  type: ics
+  url: https://www.meetup.com/Wurzburg-Deep-Learning-Meetup/events/ical/
+  organizer: "Würzburg Deep Learning Meetup"
+  tags: [meetup, deep-learning, ai]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: false
+
+- name: meetup_wue_frontend
+  type: ics
+  url: https://www.meetup.com/front-end-wuerzburg/events/ical/
+  organizer: "FrankenJS / Front-End Würzburg"
+  tags: [meetup, frontend, javascript]
+  default_city: Würzburg
+  trust_tier: 2
+  broad: false
+
+# --- Broad municipal calendar (mixed content → broad=true, keyword gate on) --------------------
+- name: frizz_wuerzburg
+  type: rss
+  url: https://frizz-wuerzburg.de/search/event/veranstaltungskalender/index.rss
+  organizer: "FRIZZ Würzburg"
+  tags: [frizz, stadtkalender]
+  default_city: Würzburg
+  trust_tier: 3
+  broad: true
+  prefer_title_date: true
