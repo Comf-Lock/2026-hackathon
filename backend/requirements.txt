@@ -14,3 +14,6 @@ pyyaml>=6.0
 anthropic>=0.40
 # Web Push (VAPID) delivery — encrypts + sends notifications to browser push services.
 pywebpush>=2.0
+# py-vapid: VAPID keypair generation (gen-vapid CLI) + key loading. Ships with pywebpush but
+# imported directly in app.push, so it is declared explicitly.
+py-vapid>=1.9
