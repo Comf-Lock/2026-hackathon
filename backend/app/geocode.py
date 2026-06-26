@@ -9,8 +9,9 @@ Nominatim's usage policy is respected by construction: an identifying ``User-Age
 and at most one request per second (``Geocoder`` throttles between *network* calls). Results are
 cached per normalized query string, so a run that sees "Würzburg" ten times hits the network once.
 The enrichment step only touches events whose ``lat`` is still NULL, so a re-run does no work and
-never duplicates a lookup — and every failure (network down, no hit) is swallowed: the event simply
-stays without coordinates, never crashing the run.
+never duplicates a lookup. *Expected* failures (network down, HTTP error, malformed response, no
+hit) are caught and logged: the event simply stays without coordinates, never crashing the run.
+An *unexpected* error (a real bug) is deliberately NOT swallowed — it propagates so it is visible.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
+import httpx
 from sqlmodel import Session, select
 
 from .config import settings
@@ -38,7 +40,11 @@ def normalize_query(text: str) -> str:
 
 
 class Geocoder:
-    """Nominatim client with a per-query cache and a ≥1 req/s throttle. Graceful: never raises.
+    """Nominatim client with a per-query cache and a ≥1 req/s throttle.
+
+    Graceful for *expected* failures only: a network/HTTP/decode error or a malformed response is
+    caught, logged, and yields no coordinates. Unexpected errors are not caught — a real bug surfaces
+    instead of silently degrading every event to "no location".
 
     ``lookup`` can be injected (tests pass a fake) to avoid any real HTTP; the default performs the
     Nominatim request. ``min_interval_s`` is the minimum gap between *network* lookups — cache hits
@@ -105,14 +111,17 @@ class Geocoder:
                 resp = await client.get(self._url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
-        except Exception as exc:  # network / HTTP / decode — graceful, no coordinates
+        except (httpx.HTTPError, ValueError) as exc:  # connect/timeout, HTTP status, JSON decode
             logger.warning("nominatim request failed for %r: %s", query, exc)
             return None
         if not data:
             return None
         try:
             return float(data[0]["lat"]), float(data[0]["lon"])
-        except (KeyError, IndexError, TypeError, ValueError):
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            # Reached Nominatim but the payload was not the {lat, lon} shape we expect — log it
+            # (a silent None here used to hide upstream format changes), then yield no coordinates.
+            logger.warning("nominatim returned unparseable result for %r: %s", query, exc)
             return None
 
 
