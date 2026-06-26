@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import yaml
 
+from . import http
 from .adapters.ics import ICSFeedAdapter
 from .adapters.rss import RSSFeedAdapter
 from .base import SourceAdapter
@@ -36,14 +37,6 @@ logger = logging.getLogger("eventradar.ingest.feeds")
 FEEDS_YAML = Path(__file__).parent / "feeds.yaml"
 
 _FEED_TYPES = {"ics", "rss"}
-_TIMEOUT = httpx.Timeout(20.0)
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
-    "Accept": "text/calendar, application/rss+xml, application/xml, text/xml, */*;q=0.8",
-}
 
 
 # --- Definition → adapter -----------------------------------------------------------------------
@@ -202,9 +195,7 @@ async def validate_feed(ftype: str, url: str) -> tuple[bool, str]:
     if ftype not in _FEED_TYPES:
         return False, f"unsupported feed type {ftype!r}"
     try:
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
-        ) as client:
+        async with http.client() as client:
             resp = await client.get(url)
             resp.raise_for_status()
     except httpx.HTTPError as exc:

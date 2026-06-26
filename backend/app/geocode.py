@@ -20,10 +20,10 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-import httpx
 from sqlmodel import Session, select
 
 from .config import settings
+from .ingest import http
 from .models import Event
 
 logger = logging.getLogger("eventradar.geocode")
@@ -96,10 +96,13 @@ class Geocoder:
 
     async def _nominatim(self, query: str) -> Coords | None:
         params = {"q": query, "format": "json", "limit": 1}
-        headers = {"User-Agent": self._user_agent}
+        # Nominatim's policy requires an *identifying* UA (not the anti-bot one) and a short timeout,
+        # so geocoding overrides both on the shared client factory.
         try:
-            async with httpx.AsyncClient(timeout=8) as client:
-                resp = await client.get(self._url, params=params, headers=headers)
+            async with http.client(
+                headers={"User-Agent": self._user_agent}, timeout=8.0
+            ) as client:
+                resp = await client.get(self._url, params=params)
                 resp.raise_for_status()
                 data = resp.json()
         except Exception as exc:  # network / HTTP / decode — graceful, no coordinates
