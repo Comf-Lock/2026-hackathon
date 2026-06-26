@@ -75,4 +75,14 @@ onMounted(load)
 .section-title { font-size: 15px; margin: 0 0 12px; letter-spacing: -.2px; }
 
 .hint { font-size: 12px; color: var(--faint); text-align: center; margin-top: 30px; }
+
+/* Phone: trim side padding and the hero headline so the pitch fits ~360px without overflow.
+   The SearchMask + EventList below handle their own responsive stacking. */
+@media (max-width: 520px) {
+  .landing { padding: 0 14px 40px; }
+  .hero { padding: 28px 0 16px; }
+  .hero h1 { font-size: 24px; }
+  .hero p { font-size: 14px; }
+  .btn.lg { width: 100%; }
+}
 </style>

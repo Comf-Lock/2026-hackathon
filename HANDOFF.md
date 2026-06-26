@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-4
 created: 2026-06-25
-last_updated: 2026-06-26-agent-4-pwa-responsive-wip
+last_updated: 2026-06-26-agent-4-pwa-responsive-done
 schema_version: "0.4"
-status: master-orchestration · agent-4-header-stable · agent-4-pwa-responsive-wip
+status: master-orchestration · agent-4-pwa-responsive-done
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,7 @@ status: master-orchestration · agent-4-header-stable · agent-4-pwa-responsive-
 
 ## current_task
 
-agent/agent-4 (sole frontend agent). **PWA Phase 1b (Responsive) — IN ARBEIT, Survey fertig, Edits NOCH NICHT begonnen.** Auf origin/master rebased; master brachte LandingView geo/radius, SearchMask geo-props, vite.config Tailscale-Host. Brief `_scrape/inbox/task-pwa-responsive.md` (noch NICHT nach processed/). Ziel: alle Views auf ~360–430px sauber + bedienbar, Desktop NICHT verschlechtern, Header-Fix (wideHeader inkl. profile) NICHT brechen. Bereits live/PR-ready aus dieser Session: Refactor P1.5 Auth [f80c74d], Kalender-Detail-Spalte [1367c43], Logged-out-Layout+Tab Suche [98f0658], PWA-Shell [f26db4e], Header-stable [72d648e]. Konsistente Breakpoints: 880 (Tablet/Stack), 640 (Phone), 430 (eng). **Nächster Schritt:** Den vollständigen per-Datei-Responsive-Plan aus Journal 2026-06-26 (Eintrag 12:31 `offen:`) abarbeiten — Kern: App.vue Nav <640px umbrechen/kompakt (Header pixelstabil lassen, wideHeader NICHT anfassen); DashboardView Rail bei <1000px NICHT display:none sondern unter den Content stapeln (DoD will Rail-Boxen stapeln, nicht verstecken!); SearchMask Inputs <640px full-width; EventCard <480px padding/Buttons; CalendarView Monat/Jahr-Grid <640px scroll/kompakt; ProfileView padding; MapView ist schon ok (@880px). Dann vite build grün, Brief→processed, commit `feat(pwa): responsive mobile layout across all views`, HANDOFF aus ORIG_HEAD restoren (Rebase bricht merge=ours), push --force-with-lease. HANDOFF-Hinweis: On-Device-Test/PWA-Install braucht HTTPS (Master: Tailscale-serve/Cert; vite.config allowedHosts .ts.net ist da).
+agent/agent-4 (sole frontend agent). **PWA Phase 1b (Responsive) — FERTIG, committet, vite build grün.** Alle Views responsiv über konsistente Breakpoints (1000/880 Stack · 640 Phone · 520/480 eng): App.vue Header wrappt <640px (Nav-Tabs eigene zentrierte Zeile, wideHeader-Logik unangetastet, Wordmark erst <380px aus); SearchMask Inputs/Slider/Buttons <640px full-width gestapelt; EventCard <480px kompakter + Action-Buttons flex:1; **DashboardView Rail <1000px gestapelt statt display:none** (DoD erfüllt) + Hero <520px gestapelt; ProfileView/LandingView/CalendarView Padding + CalendarView Monatsgrid <640px kompakt. MapView war schon @880px ok. Beide PWA-Briefs → `_scrape/processed/`. **Nächster Schritt:** push (Branch ist 14 Commits vor origin/agent-4) → Master merged via PR. Für nächste Frontend-Aufgabe: auf neuen Master-Brief / Lars-Input warten — kein offener Auftrag mehr auf diesem Branch. **HINWEIS:** echtes On-Device-Testen + PWA-Install braucht HTTPS (Master kümmert sich um Tailscale-serve/Cert; vite.config allowedHosts `.ts.net` ist schon drin).
 
 ## active_plans
 
