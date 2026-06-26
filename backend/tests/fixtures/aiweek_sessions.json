@@ -1,0 +1,133 @@
+{
+  "format": "0.5.4",
+  "sessions": [
+    {
+      "id": 66,
+      "start": "2026-06-22T09:00:00+02:00",
+      "end": "2026-06-22T10:00:00+02:00",
+      "cancelled": false,
+      "highlight": false,
+      "onlineOnly": true,
+      "host": {
+        "id": 24,
+        "name": "finception GmbH",
+        "infotext": "finception entwickelt Softwarelösungen für die Finanzprozesse kleiner und mittelständischer Unternehmen. Von Finanzplanu",
+        "logo": "https://backend.timetable.ai-week.de/logos/683a007a2314e.jpg",
+        "links": {
+          "host": "https://finception.de",
+          "youtube": "https://www.youtube.com/@finceptiongmbh",
+          "linkedIn": "https://www.linkedin.com/company/finception-gmbh/"
+        }
+      },
+      "title": "Fake-Rechnungen entlarven",
+      "description": {
+        "short": "Gefälschte Rechnungen verursachen hohe Schäden in Unternehmen. Erfahre, wie KI verdächtige Rechnungen erkennt, welche Warnsignale typisch sind und welche Datenquellen und Softwarelösungen bei der Prüfung unterstützen.",
+        "long": "--> Link zur Präsentation ist unten!\r\n\r\nTäuschend echte Fake-Rechnungen werden immer professioneller – und für Unternehmen damit immer gefährlicher.\r\n\r\nGefälsch"
+      },
+      "links": {
+        "event": "https://gamma.app/docs/Fake-Rechnungen-entlarven-c6dqh1sakjlhg6e"
+      },
+      "channel": {
+        "id": 1,
+        "sort": 10,
+        "name": "Tech & Science"
+      }
+    },
+    {
+      "id": 58,
+      "start": "2026-06-22T11:00:00+02:00",
+      "end": "2026-06-22T12:30:00+02:00",
+      "cancelled": false,
+      "highlight": false,
+      "onlineOnly": false,
+      "host": {
+        "id": 68,
+        "name": "JUN Legal GmbH",
+        "infotext": "Die JUN Legal GmbH ist eine in Würzburger ansässige Kanzlei für IT- und Wirtschaftsrecht mit über 20 Rechtsanwält:innen ",
+        "logo": "https://backend.timetable.ai-week.de/logos/6a0df69ecd2ff.jpg",
+        "links": {
+          "host": "https://www.jun.legal",
+          "linkedIn": "https://de.linkedin.com/company/junlegal"
+        }
+      },
+      "title": "KI-Code: Ship it or get sued?",
+      "location": {
+        "name": "JUN Legal GmbH",
+        "streetNo": "Salvatorstraße 21",
+        "zipcode": "97074",
+        "city": "Würzburg",
+        "isAccessible": true,
+        "lat": 49.792008686439,
+        "lng": 9.9539163708687
+      },
+      "description": {
+        "short": "Wem gehört der Code aus der KI? KI-Assistenten generieren Code, der GPL-Schnipsel reproduziert, Lizenzhinweise verschluckt und Urheberrechte Dritter trifft. Wir sezieren reale Fälle und zeigen, wie Ihr KI-Coding rechtssicher in den Workflow holt.",
+        "long": "KI-Assistenten wie GitHub Copilot, Cursor, Claude Code oder Cody sind aus dem Entwickleralltag kaum mehr wegzudenken. Doch der generierte Code bringt rechtliche"
+      },
+      "links": {
+        "event": "info@jun.legal"
+      },
+      "channel": {
+        "id": 1,
+        "sort": 10,
+        "name": "Tech & Science"
+      }
+    },
+    {
+      "id": 101,
+      "start": "2026-06-22T10:00:00+02:00",
+      "end": "2026-06-22T10:45:00+02:00",
+      "cancelled": true,
+      "highlight": false,
+      "onlineOnly": true,
+      "host": {
+        "id": 26,
+        "name": "RAUSCH Technology GmbH",
+        "infotext": "Wir von RAUSCH Technology glauben daran, die Welt mit Hilfe künstlicher Intelligenz zu einem besseren Ort zu machen.\r\nDu",
+        "logo": "https://backend.timetable.ai-week.de/logos/6836cbe50ff0f.jpg",
+        "links": {
+          "host": "https://www.rausch.se",
+          "jobs": "https://www.rausch.se/jobs/",
+          "linkedIn": "https://www.linkedin.com/company/rauschtechnology/"
+        }
+      },
+      "title": "Anomalie! Und nun?",
+      "description": {
+        "short": "Wenn die KI eine Anomalie meldet — wer glaubt ihr eigentlich? \r\nOperator, Service-Techniker, Vorstand, Weihnachtsmann? Die Antwort hängt davon ab, ob die KI ihre Begründung mitliefert.",
+        "long": "2025 ging es um „mehr aus euren Maschinendaten machen\". \r\n2026 ist die Frage: wenn eure KI eine Anomalie meldet - wer glaubt ihr eigentlich? Operator, Service-T"
+      },
+      "channel": {
+        "id": 1,
+        "sort": 10,
+        "name": "Tech & Science"
+      }
+    }
+  ],
+  "channels": [
+    {
+      "id": 1,
+      "sort": 10,
+      "name": "Tech & Science"
+    },
+    {
+      "id": 2,
+      "sort": 20,
+      "name": "Digitale Gesellschaft & Nachhaltigkeit"
+    },
+    {
+      "id": 3,
+      "sort": 30,
+      "name": "Business & New Work"
+    },
+    {
+      "id": 4,
+      "sort": 40,
+      "name": "Gründen/Start-up"
+    },
+    {
+      "id": 5,
+      "sort": 50,
+      "name": "Kultur"
+    }
+  ]
+}
