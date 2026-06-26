@@ -55,15 +55,10 @@
   trust_tier: 2
   broad: false
 
-# --- IT-native feed (Würzburg Web Week → broad=false, no keyword gate) --------------------------
-- name: wuerzburg_web_week
-  type: ics
-  url: https://www.meetup.com/Wuerzburg-Web-Week/events/ical/
-  organizer: "Würzburg Web Week"
-  tags: [meetup, web, digital]
-  default_city: Würzburg
-  trust_tier: 2
-  broad: false
+# Würzburg Web Week has no public ICS/RSS feed — it is not a Meetup group (the former
+# meetup.com/Wuerzburg-Web-Week/events/ical/ returned 404 "Group not found"). Its program runs
+# under AI Week Mainfranken (wueww.de → ai-week.de), already covered by the AI-Week adapter, so a
+# dedicated feed entry is intentionally omitted here. Verified 2026-06-26.
 
 # --- Broad calendars (mixed content → broad=true, keyword gate on) ------------------------------
 - name: frizz_wuerzburg
