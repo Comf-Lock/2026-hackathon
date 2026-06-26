@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent3-p14-format-refactor
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent3-p14-format-refactor
 ---
 
 # Handoff — 2026-hackathon
@@ -14,11 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-3 Stand 2026-06-26 (P1.4 Format-Refactor + Card-Fix):** **fertig + gepusht** — bereit für Master-PR. Commit `79a97af` auf rebased origin/master. (A) Neues TZ-sicheres Display-Modul `frontend/src/lib/eventFormat.js` (String-Slice-Basis): bündelt Datum/Zeit/Monat/Ort-Formatierung. Entfernt die 3× MONTHS (calendarRange, EventCard, MiniEventRow), die `new Date(iso)`-Formatter (EventCard+MiniEventRow — verschoben Tag/Zeit in Nicht-Berlin-TZ) und die doppelten place-Varianten (→ `formatPlace`/`formatPlaceShort`/`venueCity`). Konsumenten EventCard/MiniEventRow/CalendarEventDetail/MapEventList/MapView importieren das Modul; `calendarRange.js` behält nur Grid-Math und re-exportiert die geteilten Konstanten → CalendarView unverändert. SearchMask/useEvents (Agent-1) nicht angefasst. (B) „geschätzt"-Marker am Gewichtungsbalken entfernt (EventCard + CalendarEventDetail) — LLM schätzt immer, redundant. vite build grün.
-
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-3 (Backend + Frontend-Display Worker). Mehrere Tasks abgeschlossen, je auf rebased origin/master committet + gepusht, jeder bereit für Master-PR: (1) Platzhalter-Gewichtungsbalken raus (`afb5773`), (2) RSVP/Attendance-Popularitätssignal `enrichment/attendance.py` + EventCard-Indikator (`dc7ab1f`, **Postgres-Migration nötig** — ALTER events ADD attendee_count INT/attendance_source VARCHAR/attendance_checked_at TIMESTAMP; MEETUP_API_KEY optional), (3) Sichtbarkeits-Badge Tier-1 → 'nur 1 Quelle' (`36a1f89`), (4) Profil-Speichern-Bug + '+'-Button (`cb7b323`, ProfileView Zeilen-Liste, Backend war ok), (5) P1.4 TZ-sicheres Format-Modul `lib/eventFormat.js` + 'geschätzt'-Marker entfernt (`79a97af`). 122 Backend-Tests grün, vite build grün. Master orchestriert Agenten 1–4 und merged deren Branches per PR nach master. **Nächster Schritt:** Master merged die offenen agent/agent-3 PRs (insb. Attendance inkl. Postgres-Migration). Kein offener agent-3-Task; auf nächsten Master-Brief in _scrape/inbox/ warten.
 
 ## active_plans
 
@@ -59,6 +55,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent3-frontend-backend-tasks · Platzhalter-Bar raus, RSVP/Attendance-Signal (+Migration), Tier-1-Badge 'nur 1 Quelle', Profil-Save-Fix, P1.4 TZ-Format-Modul + geschätzt-Marker raus. 122 pytest + vite grün, alles gepusht → Master-PRs offen
 
 ## backlog
 
