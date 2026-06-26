@@ -91,10 +91,10 @@ function onSave() {
         <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
       </div>
       <div v-if="bar.kind === 'llm'" class="legend">
-        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
+        <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
       </div>
       <div v-else-if="bar.kind === 'tags'" class="legend">
-        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }}</span>
+        <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }}</span>
       </div>
       <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
 
@@ -167,9 +167,14 @@ function onSave() {
 .bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; background: var(--chip); }
 .bar.placeholder { opacity: .5; }
 .bar i { display: block; height: 100%; }
-.legend { display: flex; gap: 14px; margin-top: 7px; flex-wrap: wrap; }
-.legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.legend { display: flex; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+/* Pills carry their bar-segment colour (--seg, the same source the bar paints with) so the
+   association segment↔pill is obvious: tinted fill + a clearly coloured border + the matching dot. */
+.legend span.seg { color: var(--ink, var(--txt)); font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--seg) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--seg) 55%, var(--line)); }
+.legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
 .sources { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .sources .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); }
