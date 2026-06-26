@@ -2,21 +2,42 @@
 // Public index (logged out). Header pitch + Google login, then the shared SearchMask + EventList
 // so visitors can browse Mainfranken events without an account. Logged-in users are bounced to
 // /dashboard by the router guard, so this view is only ever seen logged out.
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useAuth } from '../composables/useAuth'
 import { useEvents } from '../composables/useEvents'
 import SearchMask from '../components/SearchMask.vue'
 import EventList from '../components/EventList.vue'
 
 const { login } = useAuth()
-const { filters, events, total, loading, load, center, locating, useMyLocation } = useEvents({ geo: true })
+const {
+  filters, events, total, loading, load, loadMore, hasMore,
+  center, locating, useMyLocation,
+} = useEvents({ geo: true })
 
 // Default the lower date bound to today — the index sells *upcoming* events; past ones stay reachable
 // by clearing the field. Radius then narrows "what's on near me".
 filters.value.dateFrom = new Date().toISOString().slice(0, 10)
 
-// Show results immediately — visitors see events before typing anything.
-onMounted(load)
+// Infinite scroll: a sentinel at the end of the list, watched by an IntersectionObserver. When it
+// scrolls into view (with a 200px pre-load margin) and there's another page to fetch and no load is
+// already running, append the next page. loadMore() uses the same query so all active filters hold.
+const sentinel = ref(null)
+let observer = null
+
+onMounted(() => {
+  load()
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMore.value && !loading.value) loadMore()
+    },
+    { rootMargin: '200px' },
+  )
+  if (sentinel.value) observer.observe(sentinel.value)
+})
+
+onUnmounted(() => {
+  if (observer) { observer.disconnect(); observer = null }
+})
 </script>
 
 <template>
@@ -52,6 +73,12 @@ onMounted(load)
         :savable="false"
         @require-login="login"
       />
+
+      <!-- Infinite-scroll trigger + status. The sentinel is always present so the observer can
+           re-arm; the status line only shows once there are results. -->
+      <div ref="sentinel" class="scroll-sentinel" aria-hidden="true"></div>
+      <p v-if="loading && events.length" class="loadmore-state">Lädt weitere Events…</p>
+      <p v-else-if="!hasMore && events.length" class="loadmore-state done">Alle Ergebnisse geladen.</p>
     </section>
 
     <p class="hint">Demo-Stand · echte Events kommen über die Connector-Ingestion (Slice 2 ff.).</p>
@@ -75,6 +102,11 @@ onMounted(load)
 .section-title { font-size: 15px; margin: 0 0 12px; letter-spacing: -.2px; }
 
 .hint { font-size: 12px; color: var(--faint); text-align: center; margin-top: 30px; }
+
+/* Infinite scroll: a zero-height sentinel + a small status line under the results. */
+.scroll-sentinel { height: 1px; }
+.loadmore-state { text-align: center; color: var(--muted); font-size: 13px; padding: 16px 0 0; margin: 0; }
+.loadmore-state.done { color: var(--faint); }
 
 /* Phone: trim side padding and the hero headline so the pitch fits ~360px without overflow.
    The SearchMask + EventList below handle their own responsive stacking. */
