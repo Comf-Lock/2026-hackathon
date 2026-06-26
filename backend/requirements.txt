@@ -4,15 +4,11 @@ sqlmodel>=0.0.22
 psycopg[binary]>=3.2
 authlib>=1.3
 httpx>=0.27
-beautifulsoup4>=4.12
-# Playwright renders true-SPA sources (slice 2 browser.py harness — deferred adapters only).
-# After install run once: python -m playwright install chromium
-playwright>=1.44
 pydantic-settings>=2.5
 itsdangerous>=2.2
-icalendar>=6.0
-feedparser>=6.0
 pyyaml>=6.0
+# Scraper/ingest-only deps (playwright, beautifulsoup4, icalendar, feedparser) live in
+# requirements-ingest.txt — install that wherever `python -m app.ingest` runs.
 # Claude-Haiku event weighting (slice 4 enrichment). Optional at runtime: with no
 # ANTHROPIC_API_KEY the scoring step is skipped, but the package must import for `score`.
 anthropic>=0.40
