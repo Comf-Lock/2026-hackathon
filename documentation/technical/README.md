@@ -1,6 +1,6 @@
 ---
 project: 2026-hackathon
-last_verified: 2026-06-25
+last_verified: 2026-06-26
 ---
 
 ## Concepts & Nomenclature
@@ -16,6 +16,12 @@ last_verified: 2026-06-25
 | RawEventRecord | Adapter-Output-DTO (Provenance + Event-Felder), entkoppelt von DB | `backend/app/ingest/types.py` |
 | SourceAdapter | Vertrag `fetch(scope) -> Iterable[RawEventRecord]` je Quelle | `backend/app/ingest/` (Slice 2) |
 | GeoScope | konfigurierbares Such-Fenster (Default Mainfranken) | `backend/app/ingest/types.py` → `GeoScope` |
+| FeedSource (Feed) | laufzeit-registrierte ICS/RSS-Quelle (DB statt Code, `url` unique, `enabled`-Flag = Sichtbarkeit im Lauf) | `backend/app/models.py` → `FeedSource` |
+| Bookmark | von einem User gemerktes Event (`(user_id, event_id)` unique) | `backend/app/models.py` → `Bookmark` |
+| topic_weights / intent_weights | LLM-Scores je Event, `{slug: int}` (Summe 100 pro Achse), gefüllt vom Scoring (Slice 4) | `backend/app/models.py` → `Event` |
+| Dedup-Key | `dedup_key` auf `Event` = Schlüssel für cross-source-Zusammenführung gleicher Events | `backend/app/models.py` → `Event` |
+| useEvents | Composable: reaktiver Events-State (Filter, Pagination, camel↔snake-Mapping, Fixture-Fallback) | `frontend/src/composables/useEvents.js` |
+| Map-/Calendar-View | Leaflet-Karte mit Event-Pins · Wochen/Monats/Jahres-Kalender | `frontend/src/views/MapView.vue`, `CalendarView.vue` |
 
 ## Dev Environment
 - **Backend (Docker):** `cd backend && cp .env.example .env && docker compose up --build` → API auf `http://localhost:8000` (Swagger: `/docs`), Postgres+PostGIS auf `:5432`.
@@ -44,8 +50,10 @@ last_verified: 2026-06-25
 ### Datenmodell
 - `User`: `id, google_sub (unique), email, display_name, avatar_url, created_at` — Tabelle `users` (nicht `user`, reserviertes Wort in Postgres).
 - `Profile`: `user_id (FK unique), interests[] (JSON), expertise[] (JSON), home_label, home_lat, home_lng, radius_km` — Tabelle `profiles`. 1:1 zu User.
-- `Event` (Slice 2): kanonisches Event — `title, description, start (tz), end, is_online, venue_name, address, city, postal_code, lat, lng, organizer, tags[] (JSON), url, image_url, price, language, created_at, updated_at` — Tabelle `events`.
-- `EventSource` (Slice 2): Provenance je Quelle — `event_id (FK), source_adapter, external_id, source_url, fetched_at, origin_type (scrape|feed|api|organizer|crowd), trust_tier (1=hoch…3=niedrig), raw_payload (JSON)` — Tabelle `event_sources`. **Unique `(source_adapter, external_id)`** = idempotenter Upsert-Key. 1 Event : N EventSource (cross-source-Dedup erst Slice 5).
+- `Event` (Slice 2): kanonisches Event — `title, description, start (tz), end, is_online, venue_name, address, city, postal_code, lat, lng, organizer, tags[] (JSON), url, image_url, price, language, created_at, updated_at` plus Scoring/Dedup-Felder (Slice 4): `topic_weights (JSON {slug:int}), intent_weights (JSON {slug:int}), score_confidence, score_model, scored_text_hash, dedup_key` — Tabelle `events`.
+- `EventSource` (Slice 2): Provenance je Quelle — `event_id (FK), source_adapter, external_id, source_url, fetched_at, origin_type (scrape|feed|api|organizer|crowd), trust_tier (1=hoch…3=niedrig), raw_payload (JSON)` — Tabelle `event_sources`. **Unique `(source_adapter, external_id)`** = idempotenter Upsert-Key. 1 Event : N EventSource (cross-source-Dedup via `dedup_key`).
+- `FeedSource`: laufzeit-registrierte ICS/RSS-Quelle — `name, type (ics|rss), url (unique), organizer, tags[] (JSON), default_city, trust_tier, broad, enabled, created_at, created_by` — Tabelle `feed_sources`. Erlaubt das Hinzufügen von Quellen via `POST /api/feeds` ohne Code-Änderung.
+- `Bookmark`: von einem User gemerktes Event — `user_id (FK), event_id (FK), created_at` — Tabelle `bookmarks`. **Unique `(user_id, event_id)`** = idempotentes Merken.
 
 ### API
 | Route | Methode | Auth | Zweck |
@@ -56,6 +64,12 @@ last_verified: 2026-06-25
 | `/api/auth/logout` | POST | – | Session leeren |
 | `/api/auth/me` | GET | ✅ | aktueller User |
 | `/api/profile` | GET/PUT | ✅ | Profil lesen/schreiben (PUT geocodet `home_label` bei Änderung) |
+| `/api/events` | GET | – | Event-Suche/-Filter (`q`/`city`/`tag`/Datum/`online`), paginiert (max 100) |
+| `/api/events/{id}` | GET | – | Einzel-Event inkl. Provenance |
+| `/api/bookmarks` | GET | ✅ | gemerkte Events des Users (soonest first) |
+| `/api/bookmarks/{event_id}` | POST/DELETE | ✅ | Event merken/entfernen (idempotent, 204) |
+| `/api/feeds` | GET/POST | ✅ | Feed-Quellen listen / registrieren (POST validiert URL, `type` ics\|rss, 201) |
+| `/api/feeds/{feed_id}` | DELETE | ✅ | Feed-Quelle entfernen (idempotent, 204) |
 
 ## Active Patterns
 - **Same-origin im Dev über Vite-Proxy:** Frontend ruft `/api/...` relativ; Proxy (`vite.config.js`) leitet an `:8000`. Kein CORS-Tanz im Browser; `credentials: 'include'` in `frontend/src/api.js`.

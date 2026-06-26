@@ -26,7 +26,7 @@ onMounted(() => fetchMe())
       </RouterLink>
 
       <nav class="views">
-        <RouterLink :to="listTarget" class="vlink" :class="{ on: !['calendar', 'map'].includes(route.name) }">Liste</RouterLink>
+        <RouterLink :to="listTarget" class="vlink" :class="{ on: ['landing', 'dashboard'].includes(route.name) }">Liste</RouterLink>
         <RouterLink to="/calendar" class="vlink" :class="{ on: route.name === 'calendar' }">Kalender</RouterLink>
         <RouterLink to="/map" class="vlink" :class="{ on: route.name === 'map' }">Karte</RouterLink>
       </nav>
