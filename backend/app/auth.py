@@ -67,7 +67,7 @@ async def google_callback(request: Request, session: Session = Depends(get_sessi
 
 
 @router.post("/logout")
-async def logout(request: Request):
+def logout(request: Request):
     request.session.clear()
     return {"ok": True}
 
@@ -86,7 +86,7 @@ def get_current_user(
 
 
 @router.get("/me")
-async def me(user: User = Depends(get_current_user)):
+def me(user: User = Depends(get_current_user)):
     return {
         "id": user.id,
         "email": user.email,
