@@ -5,11 +5,14 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     vue(),
-    // PWA shell (Phase 1a): generates manifest.webmanifest + a Workbox service worker that
-    // precaches the built app shell, making the app installable / launchable standalone.
-    // No push, no view/responsive changes here — those land in a separate phase.
+    // PWA: manifest.webmanifest + a service worker. We use `injectManifest` (our own src/sw.js)
+    // so the SW can handle Web-Push (push / notificationclick) on top of Workbox precaching — the
+    // installable app-shell behaviour from the generateSW phase is preserved inside src/sw.js.
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       // Auto-inject the SW registration into index.html so main.js / app code stays untouched.
       injectRegister: 'auto',
       includeAssets: ['logo.svg', 'icons/apple-touch-icon.png'],
@@ -30,11 +33,10 @@ export default defineConfig({
           { src: 'icons/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: {
+      // injectManifest controls which built files get precached into self.__WB_MANIFEST. The SPA
+      // navigateFallback + /api denylist now live in src/sw.js (NavigationRoute).
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // SPA fallback for the app shell — but never hijack the API: those go to the backend.
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/],
       },
       devOptions: {
         // Keep the SW off during `vite dev` to avoid caching surprises while developing.
