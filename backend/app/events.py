@@ -14,9 +14,15 @@ from sqlmodel import Session
 
 from . import events_service
 from .db import get_session
+from .events_service import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from .schemas import EventOut, EventSearchResponse
 
 router = APIRouter(prefix="/api/events", tags=["events"])
+
+# Geographic coordinate bounds for the radius-search centre — named so the validation reads as
+# intent ("a valid latitude") rather than bare numbers.
+LAT_MIN, LAT_MAX = -90.0, 90.0
+LNG_MIN, LNG_MAX = -180.0, 180.0
 
 
 @router.get("", response_model=EventSearchResponse)
@@ -31,14 +37,18 @@ def search_events(
         default=False,
         description="only ongoing/upcoming events (effective end >= today); default also returns past",
     ),
-    lat: float | None = Query(default=None, ge=-90, le=90, description="radius-search centre latitude"),
-    lng: float | None = Query(default=None, ge=-180, le=180, description="radius-search centre longitude"),
+    lat: float | None = Query(
+        default=None, ge=LAT_MIN, le=LAT_MAX, description="radius-search centre latitude"
+    ),
+    lng: float | None = Query(
+        default=None, ge=LNG_MIN, le=LNG_MAX, description="radius-search centre longitude"
+    ),
     radius_km: float | None = Query(
         default=None,
         gt=0,
         description="air-line radius in km around (lat,lng); all three required, else ignored",
     ),
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     offset: int = Query(default=0, ge=0),
     sort: str = Query(default="start", pattern="^start$"),
     session: Session = Depends(get_session),

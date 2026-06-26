@@ -83,6 +83,23 @@ def test_tag_filter_any_match(client, session):
     assert r.json()["total"] == 2
 
 
+def test_tag_is_free_text_not_strict_membership(client, session):
+    # Events rarely carry clean tags → tag is matched as free text over title/description/organizer
+    # /tags (substring, case-insensitive), so the pitch demo finds something.
+    _mk(session, title="Kubernetes Hands-on", tags=[])  # term only in the title
+    _mk(session, title="Talk", description="A deep dive into Kubernetes operators", tags=[])
+    _mk(session, title="Workshop", organizer="Kubernetes Würzburg", tags=[])
+    _mk(session, title="Vue Night", tags=["frontend"])  # unrelated
+
+    body = client.get("/api/events", params={"tag": "kubernetes"}).json()
+    assert body["total"] == 3
+    assert {it["title"] for it in body["items"]} == {"Kubernetes Hands-on", "Talk", "Workshop"}
+
+    # Multiple terms are OR-ed (generous): kubernetes OR frontend → 3 + 1.
+    multi = client.get("/api/events", params=[("tag", "kubernetes"), ("tag", "frontend")]).json()
+    assert multi["total"] == 4
+
+
 def test_default_includes_past_and_future(client, session):
     _mk(session, title="Past", start=NOW - timedelta(days=10))
     _mk(session, title="Future", start=NOW + timedelta(days=10))
