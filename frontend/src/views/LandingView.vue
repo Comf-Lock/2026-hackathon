@@ -48,10 +48,9 @@ onMounted(load)
 </template>
 
 <style scoped>
-/* Mirror the dashboard shell so the event feed renders at the SAME column width in both views. */
-.landing { max-width: 1240px; margin: 0 auto; padding: 0 22px 60px; }
-/* 854px = the dashboard's main column (1240 − 44 padding − 320 rail − 22 gap) → identical cards. */
-.finder { max-width: 854px; }
+/* Logged-out view is a single, centred column — no rail and therefore no empty "ghost" column on
+   the right. The content uses one comfortable reading width, centred under the header. */
+.landing { max-width: 900px; margin: 0 auto; padding: 0 22px 60px; }
 
 .hero { padding: 40px 0 20px; }
 .hero h1 { font-size: 29px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -.6px; }
