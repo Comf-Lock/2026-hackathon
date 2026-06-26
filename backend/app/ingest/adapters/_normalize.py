@@ -1,9 +1,15 @@
-"""Shared normalization helpers for feed adapters (ICS + RSS).
+"""Shared date/timezone + normalization helpers for all adapters (feeds and scrapers).
 
-Feeds hand us loosely-typed values — dates that may be naive or date-only, free-text locations,
-HTML in descriptions. These helpers coerce them into the strict shapes RawEventRecord expects so
-each adapter's mapping stays a thin field-copy. Kept dependency-free (stdlib only) and side-effect
-free so tests can exercise them directly.
+The single source for the catalogue's local timezone (Europe/Berlin) and the "assume Berlin for a
+naive timestamp" rule — ``to_aware`` is that primitive, and the string parsers (``from_iso`` /
+``from_iso_date`` / ``from_german`` / ``parse_de_datetime``) all funnel through it or the same
+``BERLIN`` constant, so naive→Berlin lives in exactly one place. (These string parsers previously
+lived in a separate ``_dates`` module that duplicated the timezone + naive-handling logic.)
+
+Sources hand us loosely-typed values — dates that may be naive, date-only, ISO-with-offset or German
+"DD.MM.YYYY", plus free-text locations and HTML in descriptions. These helpers coerce them into the
+strict shapes RawEventRecord expects so each adapter's mapping stays a thin field-copy. Kept
+dependency-free (stdlib only) and side-effect free so tests can exercise them directly.
 """
 from __future__ import annotations
 
@@ -69,6 +75,23 @@ def parse_de_datetime(text: object) -> datetime | None:
         )
     except ValueError:
         return None
+
+
+def from_iso(value: str) -> datetime:
+    """Parse an ISO 8601 string; a value with no offset is assumed Europe/Berlin (via ``to_aware``)."""
+    return to_aware(datetime.fromisoformat(value))  # a datetime input always yields a datetime
+
+
+def from_iso_date(value: str) -> datetime:
+    """Parse a bare ISO date (YYYY-MM-DD) as midnight Europe/Berlin."""
+    return to_aware(datetime.fromisoformat(value).date())  # a date input always yields a datetime
+
+
+def from_german(date_str: str, time_str: str | None = None) -> datetime:
+    """Parse 'DD.MM.YYYY' (+ optional 'HH:MM') as Europe/Berlin."""
+    day, month, year = (int(p) for p in date_str.split("."))
+    hour, minute = (int(p) for p in time_str.split(":")) if time_str else (0, 0)
+    return datetime(year, month, day, hour, minute, tzinfo=BERLIN)
 
 
 def clean_text(value: object) -> str | None:

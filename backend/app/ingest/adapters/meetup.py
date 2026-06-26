@@ -14,8 +14,8 @@ from collections.abc import Sequence
 
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
-from ._dates import from_iso
 from ._fetch import fetch_pages_deduped
+from ._normalize import from_iso
 
 # Configurable: each entry is a Meetup group's events page (catalogue #7/#8; extend in slice 5).
 GROUP_URLS = (
