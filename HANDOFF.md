@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent3-webpush-backend
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent3-webpush-backend
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,24 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
+agent/agent-3 (Backend-Worker). **Web-Push BACKEND-Groundwork (Phase 2) fertig + committet** (`6ee7c5f`, auf rebased origin/master, bereit für Master-PR). `feat(push): web push backend`. Umfang: `PushSubscription`-Model (`backend/app/models.py`, unique `endpoint`), `backend/app/push.py` mit auth-gated `POST/DELETE /api/push/subscription` (idempotent; DELETE user-scoped) + `send_push(session, user, payload)` send-service über **pywebpush** (no-op solange keine VAPID-Keys gesetzt, prunet 404/410-gone Subscriptions, mockbar via modul-level `webpush`). VAPID-Config in `config.py` (`vapid_public_key/private_key/subject`, `push_enabled`-Gate) + `.env.example`-Platzhalter (echte Keys NICHT committet). Router in `main.py`, `pywebpush` in `requirements.txt`. 6 neue Tests, gesamte Suite grün (132 pytest).
 
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**Master muss beim/nach PR-Merge:**
+1. **Postgres-Migration** ausführen (`create_all` macht kein ALTER):
+   ```sql
+   CREATE TABLE push_subscriptions (
+     id SERIAL PRIMARY KEY,
+     user_id INTEGER NOT NULL REFERENCES users(id),
+     endpoint VARCHAR NOT NULL UNIQUE,
+     p256dh VARCHAR NOT NULL,
+     auth VARCHAR NOT NULL,
+     created_at TIMESTAMP NOT NULL DEFAULT now()
+   );
+   CREATE INDEX ix_push_subscriptions_user_id ON push_subscriptions(user_id);
+   ```
+2. **VAPID-Keys** per Relay in `backend/.env` setzen: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (Generieren: `vapid --gen`, py-vapid). Agent fasst echte `.env` nicht an. Solange leer → `send_push` no-op, App läuft normal.
+
+**Nächster Schritt (agent-3):** Kein offener Task. Frontend-Subscribe-UI ist ein **späterer, separater** Auftrag (nicht hier — Konflikt mit laufender Frontend-Arbeit). Auf nächsten Master-Brief in `_scrape/inbox/` warten.
 
 ## active_plans
 
