@@ -31,6 +31,13 @@ def search_events(
         default=False,
         description="only ongoing/upcoming events (effective end >= today); default also returns past",
     ),
+    lat: float | None = Query(default=None, ge=-90, le=90, description="radius-search centre latitude"),
+    lng: float | None = Query(default=None, ge=-180, le=180, description="radius-search centre longitude"),
+    radius_km: float | None = Query(
+        default=None,
+        gt=0,
+        description="air-line radius in km around (lat,lng); all three required, else ignored",
+    ),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     sort: str = Query(default="start", pattern="^start$"),
@@ -45,6 +52,9 @@ def search_events(
         date_to=date_to,
         is_online=is_online,
         upcoming=upcoming,
+        center_lat=lat,
+        center_lng=lng,
+        radius_km=radius_km,
         limit=limit,
         offset=offset,
     )
