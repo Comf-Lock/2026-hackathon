@@ -5,7 +5,7 @@
 // the filters/events/total/loading/error state, and the local-fixture fallback so no view ever
 // looks broken when the API is unreachable. The *filtered* contract (q/city/tag/dates/is_online +
 // the full EventOut field set) is the backend's; unknown params are ignored server-side.
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { api } from '../api'
 
 export const EMPTY_FILTERS = { q: '', city: '', tag: '', dateFrom: '', dateTo: '', isOnline: false }
@@ -139,7 +139,34 @@ export function useEvents({ limit = 20, paginate = false, maxPages = 10, geo = f
     }
   }
 
-  return { filters, events, total, loading, error, load, center, locating, geo, useMyLocation }
+  // More pages available to append (infinite scroll). False once every `total` row is loaded.
+  const hasMore = computed(() => events.value.length < total.value)
+
+  // Append the NEXT page (offset = current count) without resetting — for infinite scroll. No-op
+  // while a load is in flight, when nothing more is available, or in paginate mode (that consumer
+  // already loads the whole range up front). Uses the SAME query as load(), so every active filter
+  // (radius, online, dates, text…) is respected on the appended page too.
+  async function loadMore() {
+    if (paginate || loading.value || !hasMore.value) return
+    loading.value = true
+    error.value = null
+    try {
+      const offset = events.value.length
+      const data = await api(`/api/events?${toQuery(filters.value, { limit, offset, center: center.value })}`)
+      events.value = [...events.value, ...(data.items || [])]
+      total.value = data.total ?? events.value.length
+    } catch (e) {
+      // Append failed → keep the already-shown results (don't wipe them), just stop loading more.
+      error.value = e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  return {
+    filters, events, total, loading, error, load, loadMore, hasMore,
+    center, locating, geo, useMyLocation,
+  }
 }
 
 // --- Local demo fallback (EventOut-shaped) ---------------------------------------------------
