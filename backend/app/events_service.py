@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timezone
 
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlmodel import Session, select
 
 from .models import Event, EventSource
@@ -60,10 +60,20 @@ def search_events(
     date_from: date | None = None,
     date_to: date | None = None,
     is_online: bool | None = None,
+    upcoming: bool = False,
     limit: int = 20,
     offset: int = 0,
 ) -> EventSearchResponse:
-    """Filtered, paginated event search. Filters are ANDed; results sorted by start ascending."""
+    """Filtered, paginated event search. Filters are ANDed.
+
+    By default every event in the DB is returned — past ones included, because a scraped event still
+    listed on its source is worth showing. Ordering: ongoing/upcoming first (soonest first), then past
+    (most recent first). An event counts as *not past* while its effective end — ``end``, or ``start``
+    for single-day events — is today or later, so multi-day events stay visible on their last day.
+
+    ``upcoming=True`` drops past events (keeps ongoing + upcoming). An explicit ``date_from``/``date_to``
+    range overrides the default lower bound.
+    """
     conditions = []
     if q:
         like = f"%{q}%"
@@ -79,15 +89,28 @@ def search_events(
     if is_online is not None:
         conditions.append(Event.is_online == is_online)
 
-    # Default to upcoming events unless the caller pins an explicit lower bound.
+    today = _today_start()
+    # Effective end: real end for multi-day events, else the start. An event is "not past" while this
+    # is >= today. Comparison runs in SQL (portable across SQLite/Postgres, no naive/aware datetime trap).
+    eff_end = func.coalesce(Event.end, Event.start)
     if date_from is not None:
-        conditions.append(Event.start >= _day_start(date_from))
-    else:
-        conditions.append(Event.start >= _today_start())
+        conditions.append(Event.start >= _day_start(date_from))  # explicit range wins
+    elif upcoming:
+        conditions.append(eff_end >= today)
     if date_to is not None:
         conditions.append(Event.start <= _day_end(date_to))
 
-    ordered = select(Event).where(*conditions).order_by(Event.start.asc())
+    # Sort key: not-past group first; within it soonest-first; past group after it, most-recent-first.
+    is_past = eff_end < today
+    ordered = (
+        select(Event)
+        .where(*conditions)
+        .order_by(
+            is_past,  # False (0) = ongoing/upcoming first, True (1) = past last
+            case((eff_end >= today, Event.start)).asc(),  # upcoming: soonest first (past → NULL)
+            case((eff_end < today, Event.start)).desc(),  # past: most recent first (upcoming → NULL)
+        )
+    )
 
     if tag:
         wanted = set(tag)
