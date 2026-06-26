@@ -7,7 +7,7 @@
 // with interests, the list/markers can be filtered to those interests (toggle); otherwise all found
 // events are shown. Neutral CSS pins (divIcon) — no marker-image bundling, no reach into
 // eventDisplay.js. useEvents is consumed, not modified.
-import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEvents } from '../composables/useEvents'
@@ -147,17 +147,30 @@ function hoverEvent(e) {
 
 watch(filteredEvents, renderMarkers, { flush: 'post' })
 
+// Leaflet computes the map size once at init. In a stacked/flex mobile layout the container can be
+// measured before it has its final height (→ grey/half-loaded tiles), and crossing the desktop↔
+// mobile breakpoint resizes it. Recompute on the next frame after mount and on every viewport
+// resize / orientation change so tiles always fill the box.
+function refreshMapSize() {
+  if (map) map.invalidateSize()
+}
+
 onMounted(async () => {
   map = L.map(mapEl, { center: WUERZBURG, zoom: 10, scrollWheelZoom: true })
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>-Mitwirkende',
   }).addTo(map)
+  await nextTick()
+  refreshMapSize()
+  window.addEventListener('resize', refreshMapSize)
   await Promise.all([load(), loadProfile()])
+  refreshMapSize()
   renderMarkers()
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', refreshMapSize)
   if (map) { map.remove(); map = null }
 })
 </script>
@@ -228,11 +241,18 @@ onBeforeUnmount(() => {
 .overlay .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; box-shadow: var(--shadow); max-width: 340px; text-align: center; pointer-events: auto; }
 .overlay .card p { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
 
-/* Narrow screens: stack the list under the map. */
+/* Narrow screens: stack the map on top (full width, fixed height) and the list below it. The list
+   flows with the page (no nested scroll trap on touch); the map keeps an explicit height so Leaflet
+   never collapses to 0. */
 @media (max-width: 880px) {
   .maplayout { grid-template-columns: 1fr; height: auto; }
   .leaflet-host { height: 56vh; min-height: 320px; }
-  .side { height: auto; max-height: 50vh; }
+  .side { height: auto; max-height: none; }
+}
+@media (max-width: 640px) {
+  .mapwrap { padding: 16px 14px 32px; }
+  .title { font-size: 18px; }
+  .leaflet-host { height: 52vh; min-height: 300px; }
 }
 </style>
 

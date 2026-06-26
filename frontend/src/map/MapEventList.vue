@@ -128,4 +128,19 @@ function onActivate(e) {
 .it-place { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .empty { color: var(--faint); font-size: 13px; text-align: center; margin-top: 16px; }
+
+/* Phone: the list sits below the map and flows with the page (no internal scroll trap). Header
+   controls go full-width and stack; rows get larger touch targets. */
+@media (max-width: 640px) {
+  .sidelist { height: auto; }
+  .items { overflow-y: visible; padding-top: 10px; }
+  .lhead { gap: 8px; }
+  .lcount { width: 100%; }
+  .segmented { flex: 1; }
+  .seg { flex: 1; text-align: center; padding: 8px 6px; }
+  .radius-check { width: 100%; padding: 2px 0; }
+  .item { padding: 11px 12px; }
+  .it-title { font-size: 14px; }
+  .it-meta { font-size: 12px; }
+}
 </style>
