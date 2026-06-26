@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent3-push-backend-finish
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent3-push-backend-finish
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,18 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
+agent/agent-3 (Backend-Worker). **Web-Push Backend vervollständigt** (`6b68939`, auf rebased origin/master, bereit für Master-PR). `feat(push): vapid-public-key + test-send endpoints + keygen helper`. Baut auf dem bereits gemergten Push-Backend auf. Scope brief-konform (nur `push.py` + `requirements.txt` + Test; `main.py`/`config.py` brauchten nichts — Router war schon registriert, VAPID-Settings schon da). Neu:
+- `GET /api/push/vapid-public-key` (no-auth) → `{publicKey}` = applicationServerKey aus Config.
+- `POST /api/push/test` (auth) → Test-Notification an alle Subs des Users via `send_push` (tote 410/404 werden gepruned), `{sent}`.
+- `generate_vapid_keypair()` + CLI `python -m app.push gen-vapid` → druckt `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`. **Selber Code mintet + konsumiert → kein Format-Mismatch:** private = raw 32-byte base64url-Scalar (pywebpush `Vapid.from_string`→`from_raw`), public = uncompressed 65-byte EC-Point base64url (browser-`applicationServerKey`). Empirisch verifiziert (Round-Trip + Signing).
+- Subscription-Body war bereits Browser-`toJSON()`-Format (`endpoint`, `keys.p256dh/auth`) — keine Änderung.
+- `py-vapid` explizit in `requirements.txt`. **162 pytest grün.**
 
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**Frontend-Contract jetzt komplett** (Agent-4 baut Subscribe-UI dagegen): `GET /api/push/vapid-public-key`, `POST/DELETE /api/push/subscription`, `POST /api/push/test`.
+
+**Master muss:** `python -m app.push gen-vapid` ausführen → die 3 Werte per Relay in `backend/.env` setzen, dann Backend-Reload. (Postgres-Migration `push_subscriptions` aus dem vorherigen Push-PR weiterhin nötig, falls noch nicht ausgeführt.)
+
+**Nächster Schritt (agent-3):** Kein offener Task. Auf nächsten Master-Brief in `_scrape/inbox/` warten.
 
 ## active_plans
 
