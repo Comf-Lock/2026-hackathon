@@ -1,6 +1,19 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { api } from '../api'
+import { usePush } from '../composables/usePush'
+
+// Web-Push opt-in (own backend endpoints, independent of the profile form).
+const {
+  supported: pushSupported,
+  permission: pushPermission,
+  subscribed: pushSubscribed,
+  busy: pushBusy,
+  error: pushError,
+  refresh: pushRefresh,
+  toggle: pushToggle,
+} = usePush()
+onMounted(() => pushRefresh())
 
 const loading = ref(true)
 const saving = ref(false)
@@ -150,6 +163,37 @@ async function save() {
           <span v-if="error" class="err">{{ error }}</span>
         </div>
       </form>
+
+      <!-- Web-Push opt-in. Separate card from the profile form (own backend endpoints). -->
+      <section v-if="!loading" class="card notify">
+        <span class="notify-label">Benachrichtigungen</span>
+        <p class="notify-sub">Erhalte eine Push-Nachricht, sobald neue passende Events erscheinen.</p>
+
+        <p v-if="!pushSupported" class="notify-note">
+          Dein Browser unterstützt keine Web-Push-Benachrichtigungen. Auf dem iPhone funktioniert das nur,
+          wenn du Event Radar zuerst zum Home-Bildschirm hinzufügst (installierte PWA).
+        </p>
+        <template v-else>
+          <div class="notify-row">
+            <button
+              type="button"
+              class="btn" :class="pushSubscribed ? 'ghost' : 'primary'"
+              :disabled="pushBusy || pushPermission === 'denied'"
+              @click="pushToggle"
+            >
+              <template v-if="pushBusy">…</template>
+              <template v-else-if="pushSubscribed">🔕 Benachrichtigungen deaktivieren</template>
+              <template v-else>🔔 Benachrichtigungen aktivieren</template>
+            </button>
+            <span class="notify-state" :class="{ on: pushSubscribed, blocked: pushPermission === 'denied' }">
+              <template v-if="pushPermission === 'denied'">Im Browser blockiert</template>
+              <template v-else-if="pushSubscribed">aktiv</template>
+              <template v-else>aus</template>
+            </span>
+          </div>
+          <p v-if="pushError" class="err notify-err">{{ pushError }}</p>
+        </template>
+      </section>
     </div>
   </div>
 </template>
@@ -185,6 +229,17 @@ input:focus { outline: none; border-color: var(--accent); }
 .actions { display: flex; align-items: center; gap: 14px; }
 .ok { color: var(--good); font-size: 13px; font-weight: 600; }
 .err { color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* Notifications (Web-Push) card. */
+.notify { margin-top: 18px; }
+.notify-label { display: block; font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+.notify-sub { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.notify-note { color: var(--faint); font-size: 13px; line-height: 1.5; margin: 0; }
+.notify-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.notify-state { font-size: 12.5px; font-weight: 600; color: var(--faint); }
+.notify-state.on { color: var(--good); }
+.notify-state.blocked { color: var(--accent); }
+.notify-err { margin: 10px 0 0; }
 
 /* Phone: trim the shell + card padding. Rows already stack (input flex:1 + 38px touch × button),
    so only the surrounding spacing needs to shrink. */
