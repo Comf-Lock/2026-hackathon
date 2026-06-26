@@ -1,7 +1,7 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
 last_updated: 2026-06-25-master-orchestration
 schema_version: "0.4"
@@ -13,6 +13,8 @@ status: architecture · slice1-deployed · master-orchestration
 > **Adressat:** nächste Session. Bootstrap: `current_task` → `read_first_critical`, dann loslegen.
 
 ## current_task
+
+> **agent/agent-3 Stand 2026-06-26:** LLM-Topic/Intent-Weighting ist via PR#20 in master. Danach zwei reine Frontend-Card-Verbesserungen in **einem** PR auf rebased master (`agent/agent-3`, 2 Commits, `vite build` grün): (1) `style(card): color-link pills` — Topic-Legenden-Pills tragen jetzt ihre Balken-Segmentfarbe (getönter `color-mix`-Hintergrund + farbiger Rand + Dot, Farbquelle = `w.color` aus `weightBar`, keine Drift); Roh-Tag-Chips bewusst neutral (kein Segment-Bezug). (2) `feat(card): readable description + read-more` — neue pure `cleanDescription()` in `eventDisplay.js` (Entities dekodieren, literale `\n`/Block-Markup → echte Umbrüche, Tags strippen, Whitespace normalisieren), `<p>` rendert mit `white-space: pre-line`; Mehr-lesen/Weniger-Toggle (collapse 3 Zeilen, nur bei langem Text). **Nächster Schritt:** push `agent/agent-3` → Master merged via PR. Backend-Folge offen (siehe open_questions): kaputter Beschreibungstext stammt vermutlich aus den Scrape-Adaptern — Display-Fix macht die UI jetzt korrekt, Sanitisierung beim Ingest ist separat.
 
 > **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
 
@@ -38,6 +40,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - Google-OAuth-Client (Client-ID/Secret + Redirect-URIs) — Lars legt ihn an, sobald Login lokal getestet werden soll (Code baut gegen .env-Platzhalter, nicht blockierend)
 - Versioniertes Seed-Skript (backend/seed/) für Demo-Events? — offen, bei Bedarf anlegen
 - Veranstalter-Anmeldung als bewusstes Produktziel mit aufnehmen (vs. erst nur Aggregation)?
+- **Backend-Folge (Agent-3, 2026-06-26):** Event-`description` enthält vermutlich schon beim Ingest kaputten Text (literale `\n`, HTML-Entities `&amp;`/`&#8211;`/`&nbsp;`, Roh-Markup). Frontend reinigt jetzt im Display-Layer (`cleanDescription`), aber die saubere Lösung wäre Sanitisierung in den Scrape-Adaptern (`backend/app/ingest/adapters/`), damit auch API-Konsumenten/Filter sauberen Text bekommen. Nicht blockierend — Anzeige ist korrekt.
 
 > **Kaltzone:** decisions_made, Iteration History, Backlog und Landmarks liegen unterhalb dieses Markers — per `Read` vollständig nachladen bei Bedarf.
 <!-- /hot-context -->
