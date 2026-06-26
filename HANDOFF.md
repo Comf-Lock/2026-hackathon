@@ -14,6 +14,16 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
+> **agent/agent-3 Stand 2026-06-26 (RSVP/Attendance):** Popularitätssignal aus RSVP-/Teilnehmerzahlen **fertig + gepusht** — bereit für Master-PR. Commit `dc7ab1f` auf rebased origin/master. Enrichment-Schritt `backend/app/enrichment/attendance.py` (analog `score.py`): Luma `guest_count` public (ohne Key), Meetup `going` bevorzugt aus bereits gescraptem Apollo-State (Adapter stasht `going.totalCount` → `EventSource.raw_payload`, **kein Key nötig**), GraphQL-Fallback hinter `MEETUP_API_KEY` graceful ohne Key. Idempotenter CLI-Schritt `python -m app.ingest attendance` (`--all` re-check). EventCard: dezenter „👥 ~N Teilnehmer"-Indikator + „Mehr lesen"-Toggle nur noch bei >2 Zeilen Überlauf. 97 Backend-Tests grün (Netz gemockt), vite build grün.
+>
+> **⚠️ MASTER — Postgres-Migration nötig** (SQLite-Tests via `create_all` ok, Postgres altert bestehende Tabellen nicht automatisch):
+> ```sql
+> ALTER TABLE events ADD COLUMN attendee_count INTEGER;
+> ALTER TABLE events ADD COLUMN attendance_source VARCHAR;
+> ALTER TABLE events ADD COLUMN attendance_checked_at TIMESTAMP;
+> ```
+> **`MEETUP_API_KEY`:** optional — nur als GraphQL-Fallback für Meetup-Quellen, deren Zahl nicht schon beim Scrapen erfasst wurde. Aktuelle Meetup-Quellen liefern `going` ohne Key. Ohne Key kein Crash.
+
 > **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
 
 Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
