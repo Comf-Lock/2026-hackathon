@@ -16,14 +16,14 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 
+from . import http
+
 log = logging.getLogger("eventradar.ingest.browser")
 
-# A current, realistic desktop UA — bot defences (Eventbrite/Cloudflare) reject the default
-# headless UA. Kept here so every SPA adapter presents the same fingerprint.
-_UA = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
-)
+# The realistic desktop UA — bot defences (Eventbrite/Cloudflare) reject the default headless UA.
+# Sourced from the single shared HTTP layer so the browser presents the same fingerprint as the
+# httpx fetches (no more drift between the two).
+_UA = http.HEADERS["User-Agent"]
 
 
 def render_html(

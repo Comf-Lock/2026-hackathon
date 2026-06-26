@@ -16,20 +16,12 @@ from collections.abc import Sequence
 import feedparser
 import httpx
 
+from .. import http
 from ..base import BaseAdapter
 from ..types import GeoScope, RawEventRecord
 from . import _normalize as N
 
 logger = logging.getLogger("eventradar.ingest.rss")
-
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
-    "Accept": "application/rss+xml, application/xml, text/xml, */*;q=0.8",
-}
-_TIMEOUT = httpx.Timeout(20.0)
 
 
 def _entry_tags(entry: object) -> list[str]:
@@ -150,9 +142,7 @@ class RSSFeedAdapter(BaseAdapter):
         self.prefer_title_date = prefer_title_date
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
-        ) as client:
+        async with http.client() as client:
             try:
                 resp = await client.get(self.url)
                 resp.raise_for_status()

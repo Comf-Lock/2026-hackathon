@@ -21,22 +21,13 @@ from collections.abc import Sequence
 import httpx
 from icalendar import Calendar
 
+from .. import http
 from ..base import BaseAdapter
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _normalize as N
 
 logger = logging.getLogger("eventradar.ingest.ics")
-
-# A browser-ish UA — Meetup/Cloudflare are stricter on default httpx/library agents.
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
-    ),
-    "Accept": "text/calendar, text/html;q=0.9, */*;q=0.8",
-}
-_TIMEOUT = httpx.Timeout(20.0)
 
 # genIcs links on the Gründerzentren listing carry the event id as `_id=<digits>` alongside the
 # `_func=genIcs` marker; the attribute order varies, so match the id on either side of the marker.
@@ -207,9 +198,7 @@ class ICSFeedAdapter(BaseAdapter):
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
         records: list[RawEventRecord] = []
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
-        ) as client:
+        async with http.client() as client:
             for url in self.urls:
                 try:
                     resp = await client.get(url)
@@ -261,9 +250,7 @@ class ZdiGenIcsAdapter(BaseAdapter):
 
     async def fetch(self, scope: GeoScope) -> Sequence[RawEventRecord]:
         records: list[RawEventRecord] = []
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT, headers=_HEADERS, follow_redirects=True
-        ) as client:
+        async with http.client() as client:
             try:
                 listing = await client.get(self.LISTING_URL)
                 listing.raise_for_status()
