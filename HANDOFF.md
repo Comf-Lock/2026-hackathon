@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-26-agent1-p1-1-registry
+last_updated: 2026-06-26-agent1-aiweek-adapter
 schema_version: "0.4"
-status: slice1-deployed · agent1-refactor-p1-1-done
+status: slice1-deployed · agent1-aiweek-adapter-done
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,7 @@ status: slice1-deployed · agent1-refactor-p1-1-done
 
 ## current_task
 
-agent/agent-1 · Refactor **P1.1 (Audit #6) — explizite deterministische Adapter-Registry — fertig & gepusht** (`f9705cb` auf origin/agent/agent-1, auf origin/master rebased). `get_adapters(session)` baut Code- + Config-Feed- (`feeds.yaml`) + DB-Feed-Adapter in EINEM deterministischen Call (DB>config>code bei Namenskollision); ordnungsabhängiges Lazy-Warm-up + `_config_feeds_loaded`-Latch entfernt. `feed_loader.register_config_feeds`/`register_db_feeds` → reine Builder `build_config_feeds`/`build_db_feeds` (geben Adapter zurück, kein globales `register` mehr) → Import-Zyklus registry↔feed_loader aufgelöst (einseitiger DAG, registry importiert feed_loader lazy in `get_adapters`); `_REGISTRY`(merged)→`_CODE_ADAPTERS`(nur Code). `core.run_ingestion` + `__main__._list_adapters`: je ein `get_adapters(session)`-Call statt Warm-up-Tanz. Grenzen eingehalten: nur ingest-Registry/Loader/CLI berührt, plus 2 Doc-Accuracy-Zeilen (`models.py`/`feeds.py`, `register_db_feeds`→`build_db_feeds`-Referenz). Verhalten unverändert: `python -m app.ingest list` zeigt dieselben 9 Adapter; 81 pytest grün. **Nächster Schritt:** kein offener agent-1-Auftrag — Master macht PR `agent/agent-1 → master` (protected). Zuvor in master: P0.1 geteilte HTTP-Schicht (`ingest/http.py`), Feed-Input-Kanal (`feeds.yaml`/`feed_loader`/`/api/feeds`), Location-Enrichment/Geocoding (`geocode.py`).
+agent/agent-1 · **Neuer Adapter „aiweek" (AI Week Mainfranken) — fertig, committet, push ausstehend** (`d2dbdc5`, auf `origin/master` rebased — P1.1-Registry ist in master). Festival-Programm (~40 Einzel-Events: Talks/Workshops/Hackathon) liegt nur in einer JS-SPA → fehlte allen anderen Quellen. **Datenpfad:** die SPA rendert aus einem **unauthentifizierten statischen Export**, den ihr eigenes Bundle (`main.5466c032.js`) per plain `fetch` zieht: `GET https://backend.timetable.ai-week.de/export/session.json` → `{sessions[]}`. Adapter (`backend/app/ingest/adapters/aiweek.py`) mappt `sessions[]` → `RawEventRecord` (title, desc, start, **end**, is_online, venue/addr/city/zip/**lat/lng inline → kein Geocoding**, organizer=host, tags=channel, url=`links.event`-http(s) sonst `programm.php`-Detailseite). Cancelled übersprungen; edition-agnostisch (nächste Edition = selbe URL). `broad=False`, `origin_type=scrape`, `trust_tier=2`, shared http (P0.1), registriert via P1.1-Registry → **10 Adapter**. Pure `parse_sessions()` voll getestet gegen Fixture (`tests/test_aiweek.py` + `tests/fixtures/aiweek_sessions.json`), kein Live-Call. Live-Dry-Run: 38 Events, alle kept, 0 Crash. 90 pytest grün. **Abweichung vom Brief** (bewusst, in `decisions_made`): statt optimale-praesentation-API + Auth-Header-Extraktion + Playwright-Fallback der reale unauth Export-Weg — kein Auth, kein Playwright nötig. **Nächster Schritt:** `git push origin agent/agent-1` (HANDOFF-Commit folgt); Master macht PR `agent/agent-1 → master` (protected).
 
 ## active_plans
 
