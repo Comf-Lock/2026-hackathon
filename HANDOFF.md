@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent-2-refactor-p1-2-done
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: agent-2 · refactor-p1-2 · done, ready-to-merge
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,11 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
+**AGENT-2 (Branch agent/agent-2) — Refactor P1.2: async/sync-Handler in auth/profile vereinheitlichen. FERTIG, ready-to-merge.** Auftrag: _scrape/processed/task-refactor-p1-2-async.md. Auf origin/master rebased (f3d096f), umgesetzt + gepusht (a291143..ff1c1ed). Nur `backend/app/auth.py` + `backend/app/profile.py`. Handler die nur synchrone DB-Calls machen von `async def` → `def` (wie events/bookmarks/feeds): `auth.logout`, `auth.me`, `profile.get_profile`. `async` BEHALTEN wo echtes `await`: `auth.google_login`/`google_callback` (Authlib), `profile.put_profile` (`await geocode`). Verhalten unverändert. **Verifikation:** `PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests` = 81 grün. [ff1c1ed]
 
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+**Nächster Schritt (Master/Lars):** agent/agent-2 via PR nach master mergen (protected).
+
+> Grenzen eingehalten: events/ingest/feeds/Frontend/main.py-Router nicht angefasst. Frühere agent-2-Arbeit (gemergt): Visibility-Dedup, P0.4 DashboardView-Slim, P0.3 useEvents-Daten-Layer. Siehe Iteration History.
 
 ## active_plans
 
@@ -57,6 +59,8 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent-2 visibility-dedup / p0-4 / p0-3 · Cross-Source-Dedup (Backend) + Sichtbarkeits-Tiers; DashboardView-Slim (swallowed-errors-Fix, MiniEventRow, v-model); ein useEvents-Daten-Layer (4 Views konsolidiert). Alle gemergt in master
+- **2026-06-26** · agent-2 refactor-p1-2 · rebased auf f3d096f; async→def für sync-only Handler in auth/profile (logout, me, get_profile), async behalten wo await echt (google_login/callback, put_profile). 81 pytest grün. agent/agent-2 gepusht [ff1c1ed] → Master-PR offen
 
 ## backlog
 
