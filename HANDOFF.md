@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent1-http-refactor
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent1-refactor-p0-1
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-1 hat diese Session 3 Aufträge abgearbeitet, je nach Brief auf rebased master: (1) Feed-Input-Kanal (feeds.yaml+feed_loader, /api/feeds) — bereits in master; (2) Location-Enrichment (Ort-Extraktion in allen Adaptern + Nominatim-Geocoding geocode.py/geocode_events, idempotent, kein Schema-Change) — bereits in master; (3) Refactor P0.1 geteilte HTTP-Schicht: neue backend/app/ingest/http.py (EIN UA/TIMEOUT/client()/fetch_text/fetch_bytes), 5 Kopien (ics/rss/feed_loader/browser/geocode) migriert, _http.py auf Re-Export verschlankt, 81 pytest grün — committet, noch NICHT gepusht. **Nächster Schritt:** agent/agent-1 pushen (git push origin agent/agent-1); HANDOFF-Commit folgt der Rotation; Master macht den PR nach master (protected).
 
 ## active_plans
 
@@ -57,6 +55,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26** · agent1-http-refactor · Refactor P0.1: backend/app/ingest/http.py als einzige HTTP-Quelle (UA/Timeout/client), 5 duplizierte Kopien migriert (ics/rss/feed_loader/browser/geocode), _http.py→Re-Export. Verhalten unverändert, 81 pytest grün. committet, push ausstehend
 
 ## backlog
 
