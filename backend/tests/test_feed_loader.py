@@ -69,9 +69,9 @@ def test_build_adapter_rejects_invalid(spec):
         feed_loader.build_adapter(spec)
 
 
-# --- register_config_feeds ----------------------------------------------------------------------
+# --- build_config_feeds -------------------------------------------------------------------------
 
-def test_register_config_feeds_from_temp_yaml(tmp_path):
+def test_build_config_feeds_from_temp_yaml(tmp_path):
     cfg = tmp_path / "feeds.yaml"
     cfg.write_text(
         "- name: zz_loader_ics\n"
@@ -85,12 +85,11 @@ def test_register_config_feeds_from_temp_yaml(tmp_path):
         "  url: https://example.test/c\n",
         encoding="utf-8",
     )
-    names = feed_loader.register_config_feeds(cfg)
-    assert names == ["zz_loader_ics", "zz_loader_rss"]  # broken one skipped
-
-    registered = {a.name: a for a in get_adapters()}
-    assert isinstance(registered["zz_loader_ics"], ICSFeedAdapter)
-    assert isinstance(registered["zz_loader_rss"], RSSFeedAdapter)
+    adapters = feed_loader.build_config_feeds(cfg)
+    by_name = {a.name: a for a in adapters}
+    assert list(by_name) == ["zz_loader_ics", "zz_loader_rss"]  # broken one skipped, order preserved
+    assert isinstance(by_name["zz_loader_ics"], ICSFeedAdapter)
+    assert isinstance(by_name["zz_loader_rss"], RSSFeedAdapter)
 
 
 def test_shipped_feeds_yaml_migration_preserved():
@@ -110,22 +109,25 @@ def test_shipped_feeds_yaml_migration_preserved():
     assert specs["frizz_wuerzburg"]["prefer_title_date"] is True
 
 
-# --- register_db_feeds --------------------------------------------------------------------------
+# --- build_db_feeds -----------------------------------------------------------------------------
 
-def test_register_db_feeds_only_enabled(session):
+def test_build_db_feeds_only_enabled(session):
     session.add(FeedSource(name="db_enabled", type="ics", url="https://example.test/e.ics"))
     session.add(
         FeedSource(name="db_disabled", type="rss", url="https://example.test/d.rss", enabled=False)
     )
     session.commit()
 
-    names = feed_loader.register_db_feeds(session)
-    assert "db_enabled" in names
-    assert "db_disabled" not in names  # disabled rows are skipped
+    by_name = {a.name: a for a in feed_loader.build_db_feeds(session)}
+    assert "db_enabled" in by_name
+    assert "db_disabled" not in by_name  # disabled rows are skipped
+    assert isinstance(by_name["db_enabled"], ICSFeedAdapter)
+    assert by_name["db_enabled"].origin_type == "feed"
 
-    registered = {a.name: a for a in get_adapters()}
-    assert isinstance(registered["db_enabled"], ICSFeedAdapter)
-    assert registered["db_enabled"].origin_type == "feed"
+    # And the registry composes the DB feed in when handed the same session.
+    composed = {a.name for a in get_adapters(session)}
+    assert "db_enabled" in composed
+    assert "db_disabled" not in composed
 
 
 # --- pure validators (back POST /api/feeds) -----------------------------------------------------
