@@ -1,19 +1,17 @@
-// Shared event-search state + API client. Used by both the public LandingView and (via the
-// same exported shape) the auth-gated DashboardView — one search implementation, two callers.
+// The single frontend events data layer. One client for GET /api/events, one error strategy,
+// shared by every consumer: LandingView, DashboardView, CalendarView and MapView.
 //
-// Talks to GET /api/events with the contract query params (camelCase filters → snake_case query).
-// The endpoint is live on this branch already, but the *filtered* contract (q/city/tag/dates/
-// is_online + the full EventOut field set) is owned by Agent-3. Until that lands, unknown query
-// params are simply ignored server-side, and if the call fails entirely we fall back to a small
-// local fixture so the public index always demos. Switching to the full live endpoint is a no-op
-// here — it's already the real call.
+// It owns: the camelCase→snake_case query builder, the fetch (single page or paged over a range),
+// the filters/events/total/loading/error state, and the local-fixture fallback so no view ever
+// looks broken when the API is unreachable. The *filtered* contract (q/city/tag/dates/is_online +
+// the full EventOut field set) is the backend's; unknown params are ignored server-side.
 import { ref } from 'vue'
 import { api } from '../api'
 
 export const EMPTY_FILTERS = { q: '', city: '', tag: '', dateFrom: '', dateTo: '', isOnline: false }
 
 // camelCase filter state → the snake_case query string the API contract expects.
-function toQuery(f, { limit = 20, offset = 0 } = {}) {
+export function toQuery(f, { limit = 20, offset = 0 } = {}) {
   const p = new URLSearchParams()
   if (f.q) p.set('q', f.q)
   if (f.city) p.set('city', f.city)
@@ -26,23 +24,50 @@ function toQuery(f, { limit = 20, offset = 0 } = {}) {
   return p.toString()
 }
 
-export function useEventSearch() {
+/**
+ * Reactive events state + loader.
+ *
+ * @param {object}  [options]
+ * @param {number}  [options.limit=20]      page size sent to the API
+ * @param {boolean} [options.paginate=false] page through the whole result set (e.g. a calendar
+ *                                           period) instead of just the first page
+ * @param {number}  [options.maxPages=10]    runaway guard for the paginate loop
+ * @returns {{ filters, events, total, loading, error, load }}
+ */
+export function useEvents({ limit = 20, paginate = false, maxPages = 10 } = {}) {
   const filters = ref({ ...EMPTY_FILTERS })
   const events = ref([])
   const total = ref(0)
   const loading = ref(false)
   const error = ref(null)
 
-  async function search() {
+  async function load() {
     loading.value = true
     error.value = null
     try {
-      const data = await api(`/api/events?${toQuery(filters.value)}`)
-      events.value = data.items || []
-      total.value = data.total ?? events.value.length
+      if (paginate) {
+        // Page at the API's row cap so a wide window (calendar year view) isn't silently truncated.
+        const acc = []
+        let offset = 0
+        let tot = 0
+        for (let page = 0; page < maxPages; page++) {
+          const data = await api(`/api/events?${toQuery(filters.value, { limit, offset })}`)
+          const items = data.items || []
+          acc.push(...items)
+          tot = data.total ?? acc.length
+          offset += items.length
+          if (items.length === 0 || acc.length >= tot) break
+        }
+        events.value = acc
+        total.value = tot
+      } else {
+        const data = await api(`/api/events?${toQuery(filters.value, { limit })}`)
+        events.value = data.items || []
+        total.value = data.total ?? events.value.length
+      }
     } catch (e) {
-      // API unreachable / not yet implementing the contract → degrade to local fixtures so the
-      // public landing never looks broken in a standalone-frontend demo. Filtered client-side.
+      // API unreachable / not yet implementing the contract → degrade to local fixtures (filtered
+      // client-side) so the UI always demos. One strategy for every consumer.
       error.value = e
       const items = filterFixtures(filters.value)
       events.value = items
@@ -52,12 +77,12 @@ export function useEventSearch() {
     }
   }
 
-  return { filters, events, total, loading, error, search }
+  return { filters, events, total, loading, error, load }
 }
 
 // --- Local demo fallback (EventOut-shaped) ---------------------------------------------------
 // Mirrors the API contract's EventOut so EventCard renders identically whether data is live or
-// mocked. Mainfranken content to match the product's regional focus.
+// mocked, and carries lat/lng so the map still shows pins offline. Mainfranken content.
 const FIXTURES = [
   {
     id: 9001, title: 'FrankenJS — Vue 3 Deep Dive',
