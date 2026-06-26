@@ -1,10 +1,9 @@
 <script setup>
 // Logged-in dashboard: the personalised home for authenticated users.
 //
-// It reuses the SHARED search kit (SearchMask + EventList + useEventSearch) — owned by
-// Agent-1, imported here via ./dashboard/searchKit.js (currently local stubs, swapped to the
-// real components in one place once Agent-1 merges). On top of the shared search it adds the
-// personalisation that distinguishes it from the public index:
+// It reuses the SHARED search kit (SearchMask + EventList + useEventSearch) — owned by Agent-1,
+// imported here via ./dashboard/searchKit.js (the single swap point). On top of the shared search
+// it adds the personalisation that distinguishes it from the public index:
 //   - greeting with the user's name
 //   - filter pre-fill from the profile (interests → tag, home_label → city)
 //   - a "Für dich" strip of interest-based recommendations
@@ -15,8 +14,11 @@ import { api } from '../api'
 import { useAuth } from '../composables/useAuth'
 import { distinctSources } from '../lib/eventDisplay'
 import { SearchMask, EventList, useEventSearch } from '../dashboard/searchKit'
+import MiniEventRow from '../dashboard/MiniEventRow.vue'
 
-const { user, fetchMe } = useAuth()
+// Auth is resolved by the router guard before this view renders, so `user` is already populated —
+// no fetchMe()/redirect here. We only read the user for the greeting.
+const { user } = useAuth()
 
 const profile = ref(null)
 const profileReady = ref(false)
@@ -25,11 +27,11 @@ const profileReady = ref(false)
 // interest-based recommendations ("Für dich"). Destructured so the refs auto-unwrap in template.
 const {
   filters: mainFilters, events: mainEvents, total: mainTotal,
-  loading: mainLoading, usingDemo: mainDemo, search: mainSearch,
+  loading: mainLoading, error: mainError, search: mainSearch,
 } = useEventSearch()
 const {
   filters: recoFilters, events: recoEvents, total: recoTotal,
-  loading: recoLoading, usingDemo: recoDemo, search: recoSearch,
+  loading: recoLoading, error: recoError, search: recoSearch,
 } = useEventSearch()
 
 // Bookmarks ("Merken"): savedIds drives the card button state; savedEvents fills the rail box.
@@ -54,13 +56,6 @@ async function toggleSave(eventId) {
   }
 }
 
-const MONTHS = ['JAN', 'FEB', 'MÄR', 'APR', 'MAI', 'JUN', 'JUL', 'AUG', 'SEP', 'OKT', 'NOV', 'DEZ']
-function miniDate(start) {
-  const d = new Date(start)
-  if (Number.isNaN(d.getTime())) return { d: '–', m: '' }
-  return { d: d.getDate(), m: MONTHS[d.getMonth()] }
-}
-
 // "Exklusiv gelistet": events found on only one source — framed positively as a discovery
 // (something you'd miss elsewhere), not as a gap. Cross-source dedup (Slice 5) makes multi-source
 // listings real, so this rail surfaces the genuinely single-source finds.
@@ -74,19 +69,7 @@ const homeLabel = computed(() => profile.value?.home_label || '')
 const radiusKm = computed(() => profile.value?.radius_km || null)
 const primaryInterest = computed(() => interests.value[0] || '')
 
-// SearchMask consumption: mutate the SAME reactive object the composable owns (don't replace
-// the reference, or search() would close over a stale object).
-function onMainFilters(val) {
-  Object.assign(mainFilters, val)
-}
-function onMainSearch(val) {
-  Object.assign(mainFilters, val)
-  mainSearch()
-}
-
 onMounted(async () => {
-  await fetchMe()
-
   // Best-effort profile load → pre-fill filters. Any failure (401 / no profile) is non-fatal.
   try {
     profile.value = await api('/api/profile')
@@ -96,16 +79,20 @@ onMounted(async () => {
     profileReady.value = true
   }
 
-  if (homeLabel.value) mainFilters.city = homeLabel.value
-  if (primaryInterest.value) mainFilters.tag = primaryInterest.value
-  if (primaryInterest.value) recoFilters.tag = primaryInterest.value
+  // Pre-fill the main + reco filters from the profile. Replace the filter object (not in-place
+  // mutation) so the bound SearchMask re-syncs its inputs and search() sees the new values.
+  const prefill = {}
+  if (homeLabel.value) prefill.city = homeLabel.value
+  if (primaryInterest.value) prefill.tag = primaryInterest.value
+  if (Object.keys(prefill).length) mainFilters.value = { ...mainFilters.value, ...prefill }
+  if (primaryInterest.value) recoFilters.value = { ...recoFilters.value, tag: primaryInterest.value }
 
   await Promise.all([mainSearch(), recoSearch(), loadBookmarks()])
 })
 
-// `usingDemo` is a stub-only extra, not part of the fixed interface — optional-chain it so
-// swapping in Agent-1's composable (which won't expose it) can't throw.
-const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
+// The live event API was unreachable on the last search → useEventSearch fell back to demo
+// fixtures and set `error`. Surface that instead of failing silently.
+const apiError = computed(() => Boolean(mainError.value || recoError.value))
 </script>
 
 <template>
@@ -126,6 +113,11 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
       <RouterLink v-if="!homeLabel && !interests.length" to="/profile" class="chip">
         + Profil vervollständigen für bessere Empfehlungen
       </RouterLink>
+    </div>
+
+    <div v-if="apiError" class="apierr" role="alert">
+      <span class="ic">⚠</span>
+      <span>Live-Events konnten gerade nicht geladen werden — angezeigt werden Demo-Daten. Bitte später erneut versuchen.</span>
     </div>
 
     <div class="layout">
@@ -152,11 +144,7 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
             <h2>Alle Events</h2>
             <span v-if="mainTotal" class="hint">{{ mainTotal }} Treffer</span>
           </div>
-          <SearchMask
-            :modelValue="mainFilters"
-            @update:modelValue="onMainFilters"
-            @search="onMainSearch"
-          />
+          <SearchMask v-model="mainFilters" @search="mainSearch" />
           <div class="results">
             <EventList
               :events="mainEvents"
@@ -182,19 +170,13 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
         </div>
         <div v-if="savedEvents.length" class="box">
           <h4>Demnächst gespeichert</h4>
-          <div v-for="e in savedEvents.slice(0, 5)" :key="e.id" class="mini">
-            <div class="date"><div class="d">{{ miniDate(e.start).d }}</div><div class="m">{{ miniDate(e.start).m }}</div></div>
-            <div class="info"><b>{{ e.title }}</b><span class="muted">{{ e.city || (e.is_online ? 'Online' : 'Ort offen') }}</span></div>
-          </div>
+          <MiniEventRow v-for="e in savedEvents.slice(0, 5)" :key="e.id" :event="e" />
         </div>
 
         <div v-if="exclusiveEvents.length" class="box">
           <h4>★ Exklusiv gelistet</h4>
           <p class="muted bs-note">Events, die wir aktuell auf nur <b>einer</b> Quelle gefunden haben — Entdeckungen, die du anderswo leicht verpasst. Mehr Quellen = höhere Sichtbarkeit.</p>
-          <div v-for="e in exclusiveEvents" :key="e.id" class="mini">
-            <div class="date"><div class="d">{{ miniDate(e.start).d }}</div><div class="m">{{ miniDate(e.start).m }}</div></div>
-            <div class="info"><b>{{ e.title }}</b><span class="muted">{{ e.city || (e.is_online ? 'Online' : 'Ort offen') }}</span></div>
-          </div>
+          <MiniEventRow v-for="e in exclusiveEvents" :key="e.id" :event="e" />
         </div>
 
         <div class="box tip">
@@ -203,10 +185,6 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
         </div>
       </aside>
     </div>
-
-    <p v-if="showDemoHint" class="demohint">
-      Demo-Daten · echte Events kommen über die Connector-Ingestion (Slice 2 ff.).
-    </p>
   </div>
 </template>
 
@@ -239,18 +217,12 @@ const showDemoHint = computed(() => Boolean(mainDemo?.value || recoDemo?.value))
 .why { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 11px; font-size: 13px; }
 .why .ic { color: var(--accent); margin-top: 1px; }
 
-.mini { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
-.mini:last-child { margin-bottom: 0; }
-.mini .date { flex: 0 0 42px; text-align: center; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 5px 0; }
-.mini .date .d { font-size: 16px; font-weight: 800; line-height: 1; }
-.mini .date .m { font-size: 10px; color: var(--muted); }
-.mini .info { min-width: 0; }
-.mini .info b { display: block; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mini .info .muted { font-size: 12px; }
 .bs-note { font-size: 12px; margin: 0 0 12px; line-height: 1.45; }
 .bs-note b { color: var(--ink, var(--txt)); }
 .tip p { margin: 0; font-size: 13px; }
 .tip a { color: var(--accent); font-weight: 600; }
 
-.demohint { font-size: 12px; color: var(--faint); text-align: center; margin-top: 26px; }
+/* API-error banner — visible warning when the live event endpoint was unreachable. */
+.apierr { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 14px; font-size: 13px; color: #9a3a1f; background: rgba(217,90,43,.10); border: 1px solid rgba(217,90,43,.38); border-radius: 12px; }
+.apierr .ic { font-size: 15px; }
 </style>
