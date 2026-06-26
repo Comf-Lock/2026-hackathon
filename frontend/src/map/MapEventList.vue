@@ -11,8 +11,13 @@ const props = defineProps({
   // Online / in-person filter (v-model:filter). The host owns the value so it can apply the same
   // filter to the map pins — this component only renders the toggle and emits changes.
   filter: { type: String, default: 'all' }, // 'all' | 'inperson' | 'online'
+  // Radius ("Umkreis berücksichtigen") toggle, also host-owned (it drives the API query for the
+  // pins). hasCenter=false → no resolvable centre (logged out / no geolocation) → shown disabled.
+  radiusOn: { type: Boolean, default: false },
+  radiusKm: { type: Number, default: 0 },
+  hasCenter: { type: Boolean, default: false },
 })
-const emit = defineEmits(['select', 'hover', 'update:filter'])
+const emit = defineEmits(['select', 'hover', 'update:filter', 'update:radiusOn'])
 
 const FILTERS = [
   { key: 'all', label: 'Alle' },
@@ -46,6 +51,16 @@ function onActivate(e) {
           @click="emit('update:filter', opt.key)"
         >{{ opt.label }}</button>
       </div>
+      <label
+        class="radius-check" :class="{ disabled: !hasCenter }"
+        :title="hasCenter ? 'Nur Events im Umkreis deines Standorts zeigen' : 'Kein Standort hinterlegt — im Profil Wohnort setzen'"
+      >
+        <input
+          type="checkbox" :checked="radiusOn" :disabled="!hasCenter"
+          @change="emit('update:radiusOn', $event.target.checked)"
+        >
+        <span>Umkreis<template v-if="radiusKm"> {{ radiusKm }} km</template></span>
+      </label>
     </div>
 
     <ul class="items">
@@ -89,6 +104,12 @@ function onActivate(e) {
 .seg { border: none; background: transparent; padding: 4px 11px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; color: var(--muted); font-family: inherit; }
 .seg.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
 .seg:hover:not(.on) { color: var(--ink); }
+
+/* "Umkreis berücksichtigen" — explicit radius toggle next to the online/in-person switch. */
+.radius-check { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.radius-check input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.radius-check.disabled { opacity: .5; cursor: not-allowed; }
+.radius-check.disabled input { cursor: not-allowed; }
 
 .items { list-style: none; margin: 0; padding: 8px 0 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .item { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }

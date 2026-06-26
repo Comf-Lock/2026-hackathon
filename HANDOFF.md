@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-4
 created: 2026-06-25
-last_updated: 2026-06-26-agent-4-map-online-filter-done
+last_updated: 2026-06-26-agent-4-geo-radius-toggle-done
 schema_version: "0.4"
-status: master-orchestration · agent-4-map-online-filter-done
+status: master-orchestration · agent-4-geo-radius-toggle-done
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,7 @@ status: master-orchestration · agent-4-map-online-filter-done
 
 ## current_task
 
-agent/agent-4 (sole frontend agent). **Karten-Filter Online/Vor Ort — FERTIG, committet, vite build grün.** Segmented-Toggle „Alle · Vor Ort · Online" (Default Alle) im Header der rechten Spalte (MapEventList) via `v-model:filter`; Filter-State `placeFilter` lebt in MapView und wird auf `filteredEvents` (Profil-Filter ∩ Online/Vor-Ort) angewandt → Pins UND Liste filtern synchron (markers-watch + Overlay auf `filteredEvents` umgestellt). „Vor Ort" = `!is_online` (undefined zählt als vor Ort), „Online" = `is_online === true`. Nur `MapView.vue` + `MapEventList.vue` angefasst. Mobil: `.lhead` flex-wrap → Toggle rutscht bei schmal auf eigene Zeile. Brief → `_scrape/processed/`. **Kontext:** Frühere agent-4-Arbeit (PWA-Shell + Responsive) ist bereits in master gemergt (PR #52/wave-2345); Branch war nach Rebase == master, daher diese HANDOFF aus ORIG_HEAD restored (Rebase bricht `merge=ours`). **Nächster Schritt:** push agent/agent-4 → Master merged via PR. Danach kein offener Auftrag — auf neuen Master-Brief / Lars-Input warten. **HINWEIS:** On-Device-Test/PWA-Install braucht HTTPS (Master: Tailscale-serve/Cert; vite.config allowedHosts `.ts.net` ist drin).
+agent/agent-4 (sole frontend agent). **Geo-Radius-Toggle + Karten-Filter — FERTIG, 2 separate Commits, vite build grün.** (1) Karten-Filter Online/Vor Ort [2e53630]: Segmented-Toggle „Alle · Vor Ort · Online" (Default Alle) im MapEventList-Header via `v-model:filter`; `placeFilter` in MapView → `filteredEvents` (Profil-Filter ∩ Online/Vor-Ort), Pins+Liste synchron. (2) Expliziter Umkreis-Toggle [neuer Commit]: sichtbares Häkchen „Umkreis berücksichtigen" — neues Filter-Feld `useRadius` in useEvents; `toQuery`+`filterFixtures` senden lat/lng/radius_km nur wenn `useRadius && radiusKm && center`. Default an sobald Zentrum auflöst (Profil-Home eingeloggt → `resolveProfileCenter` setzt `useRadius:true` + übernimmt Profil-`radius_km` in Slider; bzw. nach `useMyLocation`). Checkbox in SearchMask (geo-Block, Suche) UND im MapEventList-Filterstreifen (Karte, mit km-Wert, disabled wenn kein Zentrum=graceful). MapView jetzt `useEvents({geo:true,limit:100})` → Radius wirkt auf Karte; Toggle → `setRadiusOn` setzt `filters.useRadius` + `load()` (server-side Radius) → Pins+Liste konsistent, kombinierbar mit Online/Vor-Ort. Dateien: useEvents.js, SearchMask.vue, MapView.vue, MapEventList.vue. DashboardView bewusst NICHT angefasst (nicht in Brief-Scope, kein geo). Brief → `_scrape/processed/`. **Kontext:** frühere agent-4-Arbeit ist in master gemergt (PR #52/wave); Branch war nach Rebase == master, HANDOFF aus ORIG_HEAD restored (Rebase bricht `merge=ours`). **Nächster Schritt:** push agent/agent-4 → Master merged via PR. Danach kein offener Auftrag — auf neuen Master-Brief/Lars-Input warten. **HINWEIS:** On-Device-Test/PWA-Install braucht HTTPS (Master: Tailscale-serve/Cert; vite.config allowedHosts `.ts.net` ist drin).
 
 ## active_plans
 

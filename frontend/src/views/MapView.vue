@@ -18,8 +18,23 @@ import MapEventList from '../map/MapEventList.vue'
 // Mainfranken / Würzburg as the default focus when there's nothing to fit to.
 const WUERZBURG = [49.7913, 9.9534]
 
-// A broad window so the map shows everything geocoded so far, not just "next 20".
-const { events, total, loading, error, load } = useEvents({ limit: 100 })
+// A broad window so the map shows everything geocoded so far, not just "next 20". geo:true so the
+// profile home (logged in) resolves as the radius centre and the "Umkreis berücksichtigen" toggle
+// applies the radius here too — the query is built with lat/lng/radius_km when useRadius is on.
+const { events, total, loading, error, load, filters, center } = useEvents({ geo: true, limit: 100 })
+
+// Radius toggle state mirrors the geo filter. A centre only exists when a profile home (or, later,
+// geolocation) resolved — without one the checkbox is shown disabled (graceful: no empty results).
+const hasCenter = computed(() => !!center.value)
+const radiusOn = computed(() => !!filters.value.useRadius)
+const radiusKm = computed(() => filters.value.radiusKm || 0)
+
+// Toggling the radius changes the API query (server-side radius), so reload to refetch the pins +
+// list. The online/Vor-Ort filter stays client-side and composes on top of the refetched set.
+function setRadiusOn(on) {
+  filters.value = { ...filters.value, useRadius: on }
+  load()
+}
 
 // --- Profile filter (optional, read-only) ----------------------------------------------------
 const profileInterests = ref([])
@@ -182,6 +197,10 @@ onBeforeUnmount(() => {
         :events="filteredEvents"
         :selected-id="selectedId"
         v-model:filter="placeFilter"
+        :radius-on="radiusOn"
+        :radius-km="radiusKm"
+        :has-center="hasCenter"
+        @update:radius-on="setRadiusOn"
         @select="focusEvent"
         @hover="hoverEvent"
       />
