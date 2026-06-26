@@ -95,6 +95,15 @@ class Event(SQLModel, table=True):
     score_model: str | None = None
     scored_text_hash: str | None = None
 
+    # Attendance / RSVP popularity signal — a real attendee count taken from the *source platform's*
+    # own RSVP numbers (Luma guest_count public; Meetup "going" count, preferred from the already
+    # scraped page, else its GraphQL API behind MEETUP_API_KEY). Empty until the attendance step runs
+    # (enrichment.attendance) and only for events whose source exposes a number. attendance_source
+    # records which platform supplied it; attendance_checked_at gates idempotent re-runs.
+    attendee_count: int | None = None
+    attendance_source: str | None = None
+    attendance_checked_at: datetime | None = None
+
     created_at: datetime = Field(default_factory=_utcnow)
     updated_at: datetime = Field(default_factory=_utcnow)
 

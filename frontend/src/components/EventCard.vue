@@ -33,12 +33,27 @@ const place = computed(() => {
 })
 
 // Cleaned, readable description (entities decoded, real line breaks, whitespace normalised).
-// Collapsed to a few lines by default; the toggle only appears when there is more to reveal.
 const desc = computed(() => cleanDescription(props.event.description))
 const expanded = ref(false)
-const needsToggle = computed(
-  () => desc.value.length > 200 || (desc.value.match(/\n/g) || []).length >= 3,
+
+// Collapsed-state clamp height (mirror of the CSS -webkit-line-clamp below) and the rough
+// characters-per-line for the card's description column at 13px. Used to estimate how many lines
+// the text wraps to without measuring the DOM.
+const CLAMP_LINES = 3
+const CHARS_PER_LINE = 58
+// Only worth a toggle if more than ~2 lines would stay hidden behind the clamp. For 1–2 hidden
+// lines we just show the full text and let the card grow a little — a toggle there is more
+// friction than the saved space is worth.
+const HIDDEN_LINE_THRESHOLD = 2
+
+const estimatedLines = computed(() =>
+  desc.value
+    .split('\n')
+    .reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / CHARS_PER_LINE)), 0),
 )
+// Toggle (and clamp) only when the text overflows the clamp by more than HIDDEN_LINE_THRESHOLD
+// lines; otherwise the full text renders untruncated and no button shows.
+const needsToggle = computed(() => estimatedLines.value > CLAMP_LINES + HIDDEN_LINE_THRESHOLD)
 
 const tags = computed(() => props.event.tags || [])
 // Real LLM topic weights only, or null when the event has not been scored (then no bar renders —
@@ -50,6 +65,12 @@ const sources = computed(() => distinctSources(props.event.sources))
 // Visibility magnitude (replaces the old negative "blindspot" framing): more sources → higher tier.
 const tier = computed(() => visibilityTier(sources.value.length))
 const rating = computed(() => props.event.rating || null)
+// Discreet popularity signal — a real attendee/RSVP count from the source platform (Luma
+// guest_count / Meetup "going"). Only shown when a positive number is present.
+const attendees = computed(() => {
+  const n = props.event.attendee_count
+  return typeof n === 'number' && n > 0 ? n : null
+})
 
 function onSave() {
   if (!props.savable) {
@@ -82,6 +103,11 @@ function onSave() {
       <span>📅 <b>{{ dateLabel }}</b></span>
       <span :class="{ online: event.is_online }">{{ event.is_online ? '🌐' : '📍' }} <b>{{ place }}</b></span>
       <span v-if="event.price">💰 <b>{{ event.price }}</b></span>
+      <span
+        v-if="attendees"
+        class="people"
+        :title="`Teilnehmer laut ${event.attendance_source || 'Quelle'}`"
+      >👥 <b>~{{ attendees }}</b> Teilnehmer</span>
       <span v-if="event.organizer" class="org">· {{ event.organizer }}</span>
     </div>
 
@@ -159,6 +185,8 @@ function onSave() {
 .meta b { color: var(--ink, var(--txt)); font-weight: 600; }
 .meta .online b { color: var(--good, #1f9d76); }
 .meta .org { color: var(--faint); }
+/* Discreet popularity signal — accent only on the count, stays inline with the other meta. */
+.meta .people b { color: var(--accent); }
 
 /* pre-line honours the real newlines cleanDescription() produces; collapsed state clamps to 3
    lines via the .clamp modifier, expanded shows the full text. */

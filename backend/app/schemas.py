@@ -51,6 +51,12 @@ class EventOut(BaseModel):
     topic_weights: dict = {}
     intent_weights: dict = {}
     score_confidence: float | None = None
+    # Attendance / RSVP popularity (enrichment.attendance): a real attendee count from the source
+    # platform (Luma guest_count / Meetup "going"). None when no source exposes a number; the card
+    # shows a discreet "👥 ~N Teilnehmer" indicator only when present. attendance_source names the
+    # platform that supplied it.
+    attendee_count: int | None = None
+    attendance_source: str | None = None
     sources: list[SourceOut] = []
 
 
