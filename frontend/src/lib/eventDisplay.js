@@ -49,3 +49,19 @@ export function tagWeights(tags) {
   const pct = 100 / list.length
   return list.map((tag, i) => ({ tag, color: TAG_PALETTE[i % TAG_PALETTE.length], pct }))
 }
+
+// Shown when an event has no usable tag-weights yet, so the bar is always visible as a placeholder.
+// Uneven on purpose — it reads as a *distribution* (the future LLM weighting), not equal tags.
+export const PLACEHOLDER_WEIGHTS = [
+  { tag: 'Schwerpunkt', color: TAG_PALETTE[0], pct: 46 },
+  { tag: 'Nebenthema', color: TAG_PALETTE[1], pct: 32 },
+  { tag: 'Rand', color: TAG_PALETTE[3], pct: 22 },
+]
+
+// Real tag-weights when the event has >= 2 tags, otherwise the placeholder distribution.
+// Returns { segments, placeholder } so the card can label the placeholder honestly.
+export function weightBar(tags) {
+  const real = tagWeights(tags)
+  if (real.length > 1) return { segments: real, placeholder: false }
+  return { segments: PLACEHOLDER_WEIGHTS, placeholder: true }
+}

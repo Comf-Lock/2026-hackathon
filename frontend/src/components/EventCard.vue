@@ -5,7 +5,7 @@
 // spectrum bar, and a source-reconciliation row with a blindspot badge. Colours use the app's
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
 import { computed } from 'vue'
-import { distinctSources, tagWeights } from '../lib/eventDisplay'
+import { distinctSources, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -33,7 +33,9 @@ const place = computed(() => {
 })
 
 const tags = computed(() => props.event.tags || [])
-const weights = computed(() => tagWeights(props.event.tags))
+// Always renders: real per-tag distribution when the event has >= 2 tags, otherwise a clearly
+// labelled placeholder distribution (real LLM weighting lands in Slice 4).
+const bar = computed(() => weightBar(props.event.tags))
 const sources = computed(() => distinctSources(props.event.sources))
 const isBlindspot = computed(() => sources.value.length === 1)
 const rating = computed(() => props.event.rating || null)
@@ -75,14 +77,18 @@ function onSave() {
     <p v-if="event.description" class="desc">{{ event.description }}</p>
 
     <!-- Tag-weighting spectrum (Ground-News intent-bar analog; equal split per tag, LLM-weighted later) -->
-    <div v-if="weights.length > 1" class="intent">
-      <div class="ihead"><span class="t">Themen-Gewichtung</span></div>
-      <div class="bar">
-        <i v-for="w in weights" :key="w.tag" :style="{ width: w.pct + '%', background: w.color }" :title="w.tag" />
+    <div class="intent">
+      <div class="ihead">
+        <span class="t">Themen-Gewichtung</span>
+        <span v-if="bar.placeholder" class="ph">Platzhalter</span>
       </div>
-      <div class="legend">
-        <span v-for="w in weights" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }}</span>
+      <div class="bar" :class="{ placeholder: bar.placeholder }">
+        <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="w.tag" />
       </div>
+      <div v-if="!bar.placeholder" class="legend">
+        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }}</span>
+      </div>
+      <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
     </div>
 
     <!-- Source reconciliation: where this event was found during scraping -->
@@ -136,7 +142,9 @@ function onSave() {
 .intent { margin: 14px 0 6px; }
 .intent .ihead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .intent .ihead .t { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--faint); }
+.intent .ihead .ph { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); background: var(--chip); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
 .bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; background: var(--chip); }
+.bar.placeholder { opacity: .5; }
 .bar i { display: block; height: 100%; }
 .legend { display: flex; gap: 14px; margin-top: 7px; flex-wrap: wrap; }
 .legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
