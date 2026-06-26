@@ -15,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from ..types import RawEventRecord
 from . import _normalize as N
-from ._dates import from_german
+from ._normalize import from_german
 
 # "22.06.2026  bis 26.06.2026 : Title" / "25.06.2026, 19:00  bis 20:00 : Title" / "01.10.2026 : Title"
 _LABEL_RE = re.compile(

@@ -26,7 +26,7 @@ from typing import Any
 from ..registry import register
 from ..types import GeoScope, RawEventRecord
 from . import _http
-from ._dates import from_iso
+from ._normalize import from_iso
 
 logger = logging.getLogger("eventradar.ingest.aiweek")
 
