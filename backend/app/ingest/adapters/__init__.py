@@ -10,3 +10,5 @@ from . import eventbrite_wue, meetup, thws_fiw  # noqa: F401  (import side-effec
 from . import ics, rss  # noqa: F401  (import side-effect: registration)
 # AI Week Mainfranken (festival per-session program, JSON export — single events found nowhere else)
 from . import aiweek  # noqa: F401  (import side-effect: registration)
+# THWS university-wide calendar (all faculties/both campuses; reuses the FIW accordion parser)
+from . import thws  # noqa: F401  (import side-effect: registration)
