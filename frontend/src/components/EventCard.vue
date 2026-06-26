@@ -4,8 +4,8 @@
 // Ground-News-style mockup (prototype/dashboard.html): tags + optional rating, a tag-weighting
 // spectrum bar, and a source-reconciliation row with a visibility-tier badge. Colours use the app's
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
-import { computed } from 'vue'
-import { distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
+import { computed, ref } from 'vue'
+import { cleanDescription, distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -31,6 +31,14 @@ const place = computed(() => {
   if (e.is_online) return 'Online'
   return [e.venue_name, e.city].filter(Boolean).join(', ') || 'Ort offen'
 })
+
+// Cleaned, readable description (entities decoded, real line breaks, whitespace normalised).
+// Collapsed to a few lines by default; the toggle only appears when there is more to reveal.
+const desc = computed(() => cleanDescription(props.event.description))
+const expanded = ref(false)
+const needsToggle = computed(
+  () => desc.value.length > 200 || (desc.value.match(/\n/g) || []).length >= 3,
+)
 
 const tags = computed(() => props.event.tags || [])
 // Always renders. Priority: real LLM topic_weights → tag-derived split → labelled placeholder.
@@ -77,7 +85,12 @@ function onSave() {
       <span v-if="event.organizer" class="org">· {{ event.organizer }}</span>
     </div>
 
-    <p v-if="event.description" class="desc">{{ event.description }}</p>
+    <template v-if="desc">
+      <p class="desc" :class="{ clamp: needsToggle && !expanded }">{{ desc }}</p>
+      <button v-if="needsToggle" class="more" type="button" @click="expanded = !expanded">
+        {{ expanded ? 'Weniger anzeigen' : 'Mehr lesen' }}
+      </button>
+    </template>
 
     <!-- Topic weighting (Ground-News intent-bar analog). LLM topic_weights when scored, else a
          tag-derived split, else a clearly labelled placeholder distribution. -->
@@ -152,7 +165,12 @@ function onSave() {
 .meta .online b { color: var(--good, #1f9d76); }
 .meta .org { color: var(--faint); }
 
-.desc { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* pre-line honours the real newlines cleanDescription() produces; collapsed state clamps to 3
+   lines via the .clamp modifier, expanded shows the full text. */
+.desc { margin: 0 0 6px; font-size: 13px; color: var(--muted); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.desc.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.more { display: inline-block; margin: 0 0 12px; padding: 0; background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
+.more:hover { text-decoration: underline; }
 
 .intent { margin: 14px 0 6px; }
 .intent .ihead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
