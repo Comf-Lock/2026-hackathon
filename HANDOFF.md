@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-26-agent1-p1-1-registry
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · agent1-refactor-p1-1-done
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-1 · Refactor **P1.1 (Audit #6) — explizite deterministische Adapter-Registry — fertig & gepusht** (`f9705cb` auf origin/agent/agent-1, auf origin/master rebased). `get_adapters(session)` baut Code- + Config-Feed- (`feeds.yaml`) + DB-Feed-Adapter in EINEM deterministischen Call (DB>config>code bei Namenskollision); ordnungsabhängiges Lazy-Warm-up + `_config_feeds_loaded`-Latch entfernt. `feed_loader.register_config_feeds`/`register_db_feeds` → reine Builder `build_config_feeds`/`build_db_feeds` (geben Adapter zurück, kein globales `register` mehr) → Import-Zyklus registry↔feed_loader aufgelöst (einseitiger DAG, registry importiert feed_loader lazy in `get_adapters`); `_REGISTRY`(merged)→`_CODE_ADAPTERS`(nur Code). `core.run_ingestion` + `__main__._list_adapters`: je ein `get_adapters(session)`-Call statt Warm-up-Tanz. Grenzen eingehalten: nur ingest-Registry/Loader/CLI berührt, plus 2 Doc-Accuracy-Zeilen (`models.py`/`feeds.py`, `register_db_feeds`→`build_db_feeds`-Referenz). Verhalten unverändert: `python -m app.ingest list` zeigt dieselben 9 Adapter; 81 pytest grün. **Nächster Schritt:** kein offener agent-1-Auftrag — Master macht PR `agent/agent-1 → master` (protected). Zuvor in master: P0.1 geteilte HTTP-Schicht (`ingest/http.py`), Feed-Input-Kanal (`feeds.yaml`/`feed_loader`/`/api/feeds`), Location-Enrichment/Geocoding (`geocode.py`).
 
 ## active_plans
 
