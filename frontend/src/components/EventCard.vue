@@ -4,8 +4,8 @@
 // Ground-News-style mockup (prototype/dashboard.html): tags + optional rating, a tag-weighting
 // spectrum bar, and a source-reconciliation row with a visibility-tier badge. Colours use the app's
 // existing Mainfranken palette variables. All fields except id/title/start are optional → guarded.
-import { computed } from 'vue'
-import { distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
+import { computed, ref } from 'vue'
+import { cleanDescription, distinctSources, intentMix, visibilityTier, weightBar } from '../lib/eventDisplay'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -31,6 +31,14 @@ const place = computed(() => {
   if (e.is_online) return 'Online'
   return [e.venue_name, e.city].filter(Boolean).join(', ') || 'Ort offen'
 })
+
+// Cleaned, readable description (entities decoded, real line breaks, whitespace normalised).
+// Collapsed to a few lines by default; the toggle only appears when there is more to reveal.
+const desc = computed(() => cleanDescription(props.event.description))
+const expanded = ref(false)
+const needsToggle = computed(
+  () => desc.value.length > 200 || (desc.value.match(/\n/g) || []).length >= 3,
+)
 
 const tags = computed(() => props.event.tags || [])
 // Always renders. Priority: real LLM topic_weights → tag-derived split → labelled placeholder.
@@ -77,7 +85,12 @@ function onSave() {
       <span v-if="event.organizer" class="org">· {{ event.organizer }}</span>
     </div>
 
-    <p v-if="event.description" class="desc">{{ event.description }}</p>
+    <template v-if="desc">
+      <p class="desc" :class="{ clamp: needsToggle && !expanded }">{{ desc }}</p>
+      <button v-if="needsToggle" class="more" type="button" @click="expanded = !expanded">
+        {{ expanded ? 'Weniger anzeigen' : 'Mehr lesen' }}
+      </button>
+    </template>
 
     <!-- Topic weighting (Ground-News intent-bar analog). LLM topic_weights when scored, else a
          tag-derived split, else a clearly labelled placeholder distribution. -->
@@ -91,10 +104,10 @@ function onSave() {
         <i v-for="(w, i) in bar.segments" :key="i" :style="{ width: w.pct + '%', background: w.color }" :title="`${w.tag} · ${Math.round(w.pct)}%`" />
       </div>
       <div v-if="bar.kind === 'llm'" class="legend">
-        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
+        <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }} <b>{{ Math.round(w.pct) }}%</b></span>
       </div>
       <div v-else-if="bar.kind === 'tags'" class="legend">
-        <span v-for="w in bar.segments" :key="w.tag"><i :style="{ background: w.color }" />{{ w.tag }}</span>
+        <span v-for="w in bar.segments" :key="w.tag" class="seg" :style="{ '--seg': w.color }"><i :style="{ background: w.color }" />{{ w.tag }}</span>
       </div>
       <div v-else class="legend"><span class="muted">Beispielverteilung · echte Gewichtung folgt mit LLM-Scoring</span></div>
 
@@ -152,7 +165,12 @@ function onSave() {
 .meta .online b { color: var(--good, #1f9d76); }
 .meta .org { color: var(--faint); }
 
-.desc { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* pre-line honours the real newlines cleanDescription() produces; collapsed state clamps to 3
+   lines via the .clamp modifier, expanded shows the full text. */
+.desc { margin: 0 0 6px; font-size: 13px; color: var(--muted); line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; }
+.desc.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.more { display: inline-block; margin: 0 0 12px; padding: 0; background: none; border: none; color: var(--accent); font-size: 12px; font-weight: 600; cursor: pointer; }
+.more:hover { text-decoration: underline; }
 
 .intent { margin: 14px 0 6px; }
 .intent .ihead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
@@ -167,9 +185,14 @@ function onSave() {
 .bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; background: var(--chip); }
 .bar.placeholder { opacity: .5; }
 .bar i { display: block; height: 100%; }
-.legend { display: flex; gap: 14px; margin-top: 7px; flex-wrap: wrap; }
-.legend span { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
-.legend i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.legend { display: flex; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+/* Pills carry their bar-segment colour (--seg, the same source the bar paints with) so the
+   association segment↔pill is obvious: tinted fill + a clearly coloured border + the matching dot. */
+.legend span.seg { color: var(--ink, var(--txt)); font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--seg) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--seg) 55%, var(--line)); }
+.legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
 .sources { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .sources .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--faint); }
