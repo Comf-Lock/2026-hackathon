@@ -1,7 +1,7 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
 last_updated: 2026-06-25-master-orchestration
 schema_version: "0.4"
@@ -13,6 +13,8 @@ status: architecture · slice1-deployed · master-orchestration
 > **Adressat:** nächste Session. Bootstrap: `current_task` → `read_first_critical`, dann loslegen.
 
 ## current_task
+
+> **agent/agent-3 Stand 2026-06-26 (P0.2 Backend-Refactor):** Auf rebased master, `agent/agent-3`, 1 Commit (`refactor(api): schemas + events_service`), 81 pytest grün, API-JSON-Vertrag unverändert. Eingeführt: `backend/app/schemas.py` (`SourceOut`/`EventOut`/`EventSearchResponse` — die *eine* Event-Form) und `backend/app/events_service.py` (`sources_for`/`to_event_out` + `search_events`/`get_event` mit Filter/Pagination). `events.py` ist jetzt dünner Router über den Service; `bookmarks.py` importiert aus `schemas`/`events_service` (Router→Router-Kopplung weg). `core._CANONICAL_FIELDS` abgeleitet aus `RawEventRecord.model_fields ∩ Event.model_fields` (byte-identisch zur alten Hand-Liste). **Nächster Schritt:** push `agent/agent-3` → Master merged via PR. (Frühere agent-3-Arbeit: LLM-Weighting via PR#20 gemergt; Card-Polish Pills+lesbare Beschreibung in offenem PR.)
 
 > **agent/agent-1 Stand 2026-06-26:** Feed-Input-Kanal (data-driven RSS/ICS-Registrierung) **fertig + gepusht** — bereit für Master-PR nach master. 2 Commits auf rebased master (`feat(ingest): config-driven feed registry`, `feat(api): feed source registration`). 49 pytest grün. Phase 1: `backend/app/ingest/feeds.yaml` + `feed_loader.py` (5 Feeds aus Code migriert, generische ICS/RSS-Adapter), `python -m app.ingest list`. Phase 2: `FeedSource`-Model + auth-gated `GET/POST/DELETE /api/feeds`, run_ingestion zieht enabled DB-Feeds. Details siehe Journal 2026-06-26.
 
