@@ -185,4 +185,12 @@ input:focus { outline: none; border-color: var(--accent); }
 .actions { display: flex; align-items: center; gap: 14px; }
 .ok { color: var(--good); font-size: 13px; font-weight: 600; }
 .err { color: var(--accent); font-size: 13px; font-weight: 600; }
+
+/* Phone: trim the shell + card padding. Rows already stack (input flex:1 + 38px touch × button),
+   so only the surrounding spacing needs to shrink. */
+@media (max-width: 640px) {
+  .profile-shell { padding: 0 14px 40px; }
+  .card { padding: 16px; }
+  .title { font-size: 21px; }
+}
 </style>

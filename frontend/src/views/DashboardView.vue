@@ -206,7 +206,9 @@ const apiError = computed(() => Boolean(mainError.value || recoError.value))
 .chip .x { color: var(--faint); font-size: 12px; }
 
 .layout { display: grid; grid-template-columns: 1fr 320px; gap: 22px; margin-top: 16px; }
-@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } .rail { display: none; } }
+/* Single column below 1000px: the rail boxes stack UNDER the main content (DoD: stack, don't
+   hide). The grid collapse alone moves the aside below main — no display:none. */
+@media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
 
 .block { margin-bottom: 26px; }
 .blockhead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
@@ -227,4 +229,13 @@ const apiError = computed(() => Boolean(mainError.value || recoError.value))
 /* API-error banner — visible warning when the live event endpoint was unreachable. */
 .apierr { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding: 11px 14px; font-size: 13px; color: #9a3a1f; background: rgba(217,90,43,.10); border: 1px solid rgba(217,90,43,.38); border-radius: 12px; }
 .apierr .ic { font-size: 15px; }
+
+/* Phone: tighter page padding and a stacked hero so the "Profil bearbeiten" button sits under
+   the greeting instead of being squeezed beside it. */
+@media (max-width: 520px) {
+  .dash { padding: 14px 14px 40px; }
+  .hero { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .hello h1 { font-size: 22px; }
+  .edit { align-self: stretch; text-align: center; }
+}
 </style>

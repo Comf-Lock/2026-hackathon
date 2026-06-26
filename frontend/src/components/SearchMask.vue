@@ -119,4 +119,18 @@ function reset() {
 .reset { margin-left: auto; background: none; border: none; color: var(--faint); font-size: 12.5px; font-family: inherit; cursor: pointer; padding: 7px 4px; }
 .reset:hover { color: var(--accent); }
 @media (max-width: 560px) { .reset { margin-left: 0; } }
+
+/* Phone: stack everything full-width so nothing is cramped or clipped. The search button drops
+   under the input; each filter field, the radius slider and the locate button span the full row. */
+@media (max-width: 640px) {
+  .primary { flex-wrap: wrap; }
+  .primary .btn { width: 100%; }
+  .filters { gap: 12px; }
+  .f { width: 100%; }
+  .f.check { width: auto; padding-bottom: 0; }
+  .f input[type="text"], .f input[type="date"] { min-width: 0; width: 100%; }
+  .f.radius { min-width: 0; width: 100%; }
+  .locate { width: 100%; align-self: stretch; text-align: center; }
+  .reset { width: 100%; text-align: center; padding: 9px 4px; }
+}
 </style>
