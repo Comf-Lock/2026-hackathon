@@ -145,20 +145,19 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def _list_adapters() -> int:
     """Print every registered adapter — code adapters, config feeds and enabled DB feeds."""
-    from .feed_loader import register_db_feeds
     from .registry import get_adapters
 
-    get_adapters()  # warm: code adapters + config feeds (feeds.yaml)
+    session = None
     try:
         session = _persistent_session()
-        try:
-            register_db_feeds(session)
-        finally:
-            session.close()
+        adapters = get_adapters(session)  # code + config feeds + enabled DB feeds
     except Exception as exc:  # DB unreachable → still show code + config feeds
         print(f"(DB feeds unavailable: {exc})")
+        adapters = get_adapters()
+    finally:
+        if session is not None:
+            session.close()
 
-    adapters = get_adapters()
     print(f"\n{len(adapters)} registered adapter(s):")
     print("-" * 56)
     print(f"{'name':<26}{'broad':>7}  type")

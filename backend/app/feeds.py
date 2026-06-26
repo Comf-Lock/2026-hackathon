@@ -3,7 +3,7 @@
 Auth-gated (every route resolves the current user, 401 otherwise): this is how a logged-in
 organizer/admin registers a new event source without a code change (the bridge toward slice-6
 organizer self-service). A registered feed is picked up on the next ``python -m app.ingest run``,
-which turns each enabled row into a generic adapter (see ingest/feed_loader.register_db_feeds).
+which turns each enabled row into a generic adapter (see ingest/feed_loader.build_db_feeds).
 
 POST validates the URL by fetching one sample and confirming it parses as the declared feed type
 (an empty-but-valid calendar is accepted) — an unreachable or non-feed URL is a 400, so the registry

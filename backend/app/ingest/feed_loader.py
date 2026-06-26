@@ -1,4 +1,4 @@
-"""Data-driven feed registry — turn feed *definitions* into registered generic adapters.
+"""Data-driven feed loader — turn feed *definitions* into ready-to-run generic adapters.
 
 A "feed" is a plain RSS/ICS calendar that needs no bespoke parsing: the generic ICSFeedAdapter /
 RSSFeedAdapter already cover it. The only thing that varied per feed was a hardcoded ``register(...)``
@@ -27,7 +27,6 @@ from . import http
 from .adapters.ics import ICSFeedAdapter
 from .adapters.rss import RSSFeedAdapter
 from .base import SourceAdapter
-from .registry import register
 
 if TYPE_CHECKING:  # avoid importing the DB layer at module load
     from ..models import FeedSource
@@ -105,49 +104,47 @@ def load_feed_specs(path: Path | None = None) -> list[dict[str, Any]]:
     return data
 
 
-def register_config_feeds(path: Path | None = None) -> list[str]:
-    """Register every feed in feeds.yaml as a generic adapter. Returns the registered names.
+def build_config_feeds(path: Path | None = None) -> list[SourceAdapter]:
+    """Build a generic adapter for every feed in feeds.yaml. Returns the adapters (in file order).
 
     A single malformed entry is logged and skipped — it must not take the whole config (and thus
-    every other feed) down with it.
+    every other feed) down with it. The caller (registry) composes these into the live set; this
+    function has no side effects of its own.
     """
-    names: list[str] = []
+    adapters: list[SourceAdapter] = []
     for spec in load_feed_specs(path):
         try:
-            adapter = build_adapter(spec)
+            adapters.append(build_adapter(spec))
         except (ValueError, TypeError) as exc:
             logger.warning("skip invalid feed config entry %r: %s", spec, exc)
             continue
-        register(adapter)
-        names.append(adapter.name)
-    logger.info("registered %d config feed(s): %s", len(names), ", ".join(names))
-    return names
+    logger.info("built %d config feed(s): %s", len(adapters), ", ".join(a.name for a in adapters))
+    return adapters
 
 
 # --- DB feeds (feed_sources table) --------------------------------------------------------------
 
-def register_db_feeds(session: Any) -> list[str]:
-    """Register every *enabled* FeedSource row as a generic adapter. Returns the registered names.
+def build_db_feeds(session: Any) -> list[SourceAdapter]:
+    """Build a generic adapter for every *enabled* FeedSource row. Returns the adapters.
 
-    Layered on top of the config feeds at ingest time, so a DB feed re-using a config name wins.
+    The registry layers these on top of the config feeds at ingest time, so a DB feed re-using a
+    config name wins. This function only reads the table and builds — it registers nothing.
     """
     from sqlmodel import select
 
     from ..models import FeedSource
 
-    names: list[str] = []
+    adapters: list[SourceAdapter] = []
     feeds = session.exec(select(FeedSource).where(FeedSource.enabled == True)).all()  # noqa: E712
     for feed in feeds:
         try:
-            adapter = build_adapter(_spec_from_db(feed))
+            adapters.append(build_adapter(_spec_from_db(feed)))
         except (ValueError, TypeError) as exc:
             logger.warning("skip invalid DB feed %r: %s", feed.name, exc)
             continue
-        register(adapter)
-        names.append(adapter.name)
-    if names:
-        logger.info("registered %d DB feed(s): %s", len(names), ", ".join(names))
-    return names
+    if adapters:
+        logger.info("built %d DB feed(s): %s", len(adapters), ", ".join(a.name for a in adapters))
+    return adapters
 
 
 def _spec_from_db(feed: FeedSource) -> dict[str, Any]:

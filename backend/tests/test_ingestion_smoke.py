@@ -98,7 +98,7 @@ def test_failing_adapter_is_isolated(serve_fixtures, session, monkeypatch):
 
     from app.ingest import registry
 
-    monkeypatch.setitem(registry._REGISTRY, "boom", BoomAdapter())
+    monkeypatch.setitem(registry._CODE_ADAPTERS, "boom", BoomAdapter())
     report = asyncio.run(run_ingestion(session, names=[*FIXTURE_ADAPTERS, "boom"]))
 
     boom = next(r for r in report.per_source if r.source == "boom")
