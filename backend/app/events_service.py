@@ -48,6 +48,20 @@ def to_event_out(event: Event, sources: list[SourceOut]) -> EventOut:
     return out
 
 
+def _event_matches_tag_terms(event: Event, terms: list[str]) -> bool:
+    """True if ANY tag term occurs (case-insensitive substring) in the event's text or tags.
+
+    The ``tag`` filter is treated as free text, not strict tag-array membership: real events rarely
+    carry clean tags, so a strict match returns nothing. A term matches when it appears in the title,
+    description, organizer, or any of the event's own tags — the same fields ``q`` searches, plus the
+    tag array. Multiple terms are OR-ed so the search stays generous (the pitch demo needs hits).
+    """
+    haystack = " ".join(
+        filter(None, [event.title, event.description, event.organizer, *(event.tags or [])])
+    ).casefold()
+    return any(term in haystack for term in terms)
+
+
 def _day_start(d: date) -> datetime:
     return datetime.combine(d, time.min, tzinfo=timezone.utc)
 
@@ -137,8 +151,9 @@ def search_events(
         # rows and paginating in Python — SQL count/offset can't express these portably.
         rows = session.exec(ordered).all()
         if tag:
-            wanted = set(tag)
-            rows = [e for e in rows if wanted & set(e.tags or [])]
+            terms = [t.casefold() for t in tag if t and t.strip()]
+            if terms:
+                rows = [e for e in rows if _event_matches_tag_terms(e, terms)]
         if radius_active:
             rows = [
                 e
