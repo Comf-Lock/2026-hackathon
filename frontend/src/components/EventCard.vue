@@ -219,4 +219,15 @@ function onSave() {
 .btn.ghost { background: var(--chip); border-color: var(--line); color: var(--ink, var(--txt)); }
 .btn.save { background: var(--chip); border-color: var(--line); color: var(--ink, var(--txt)); margin-left: auto; }
 .btn.save.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+/* Phone: trim padding and let the two action buttons share the row evenly so they stay tappable.
+   The source-tier badge drops its auto-margin so it wraps cleanly onto its own line when needed. */
+@media (max-width: 480px) {
+  .card { padding: 14px; border-radius: 14px; }
+  .head h3 { font-size: 16px; }
+  .actions { gap: 8px; }
+  .actions .btn { flex: 1; padding: 10px 8px; }
+  .btn.save { margin-left: 0; }
+  .tier { margin-left: 0; }
+}
 </style>

@@ -109,4 +109,20 @@ header {
   color: var(--ink);
 }
 .avatar { width: 26px; height: 26px; border-radius: 50%; }
+
+/* Mobile header: keep the desktop bar untouched, only adapt below 640px. The bar wraps so the
+   nav tabs drop onto their own centred row while brand + actions stay on the first row. The
+   wideHeader logic (max-width/padding) is intentionally not touched — only the inner flow. */
+@media (max-width: 640px) {
+  .bar, .bar.wide { padding: 10px 14px; gap: 8px 10px; flex-wrap: wrap; }
+  .brand { font-size: 17px; }
+  .views { margin-left: 0; order: 3; width: 100%; justify-content: center; }
+  .actions { gap: 7px; }
+  .profile-link span { max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn.primary { font-size: 13px; }
+}
+/* Very tight: drop the wordmark but keep the logo so the actions still fit on one row. */
+@media (max-width: 380px) {
+  .brand .word { display: none; }
+}
 </style>

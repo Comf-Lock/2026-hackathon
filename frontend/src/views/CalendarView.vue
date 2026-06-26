@@ -266,4 +266,16 @@ onMounted(reload)
   .year { grid-template-columns: repeat(2, 1fr); }
   .week { grid-template-columns: 1fr; }
 }
+
+/* Phone: keep the 7-column month grid (so the week structure stays legible) but shrink cells,
+   gaps and chip text so nothing overflows at ~360px. Week is already single-column from 860. */
+@media (max-width: 640px) {
+  .calwrap { padding: 16px 14px 40px; }
+  .month { gap: 4px; }
+  .month .dow { font-size: 9.5px; }
+  .day { min-height: 70px; padding: 4px; border-radius: 7px; }
+  .day .num { font-size: 11px; }
+  .chip-ev { font-size: 9.5px; padding: 2px 4px; border-radius: 4px; }
+  .year { gap: 10px; }
+}
 </style>

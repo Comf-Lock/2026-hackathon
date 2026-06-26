@@ -172,3 +172,25 @@ class Bookmark(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id", index=True)
     event_id: int = Field(foreign_key="events.id", index=True)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class PushSubscription(SQLModel, table=True):
+    """A browser's Web-Push subscription for a user (Push API / VAPID).
+
+    Holds the three pieces the push service needs to deliver a notification: the ``endpoint`` URL the
+    browser registered, plus the ``p256dh``/``auth`` keys used to encrypt the payload. The endpoint is
+    globally unique (it identifies one browser install), so re-subscribing the same browser upserts in
+    place. One user can have several rows — one per device/browser they enabled push on.
+    """
+
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        UniqueConstraint("endpoint", name="uq_push_subscription_endpoint"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    endpoint: str
+    p256dh: str
+    auth: str
+    created_at: datetime = Field(default_factory=utcnow)
