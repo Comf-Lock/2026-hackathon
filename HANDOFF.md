@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-26-agent-2-refactor-p0-4-done
+last_updated: 2026-06-26-agent-2-refactor-p0-3-done
 schema_version: "0.4"
-status: agent-2 · refactor-p0-4 · done, ready-to-merge
+status: agent-2 · refactor-p0-3 · done, ready-to-merge
 ---
 
 # Handoff — 2026-hackathon
@@ -14,11 +14,13 @@ status: agent-2 · refactor-p0-4 · done, ready-to-merge
 
 ## current_task
 
-**AGENT-2 (Branch agent/agent-2) — Refactor P0.4: DashboardView entschlackt + swallowed-errors-Bug. FERTIG, ready-to-merge.** Auftrag: _scrape/processed/task-refactor-p0-4-dashboard.md. Auf origin/master rebased (622a0bd), umgesetzt + gepusht (9e72eea..c95ce72). Nur `frontend/src/views/DashboardView.vue` geändert + NEU `frontend/src/dashboard/MiniEventRow.vue`. [c95ce72]: (1) Bug — toter `usingDemo`-Pfad raus (useEventSearch exportiert das nie → showDemoHint permanent false), stattdessen composable-`error` konsumiert + sichtbares `.apierr`-Banner bei API-Ausfall. (2) Auth entdoppelt — redundantes onMounted-`fetchMe()` raus (Router-Guard resolved Session vor Render). (3) `MiniEventRow` extrahiert (2 byte-gleiche Rail-Rows). (4) SearchMask auf `v-model` vereinheitlicht, Object.assign-Tanz weg; Profil-Prefill ersetzt jetzt das filter-Objekt statt In-Place-Mutation (fixt stilles Prefill-Break gegen Agent-1s ref-basiertes useEventSearch). vite build grün (52 Module). Grenzen eingehalten: useEventSearch.js/EventCard.vue/eventDisplay.js/App.vue/router.js nur gelesen.
+**AGENT-2 (Branch agent/agent-2) — Refactor P0.3: ein generischer useEvents-Frontend-Daten-Layer. FERTIG, ready-to-merge.** Auftrag: _scrape/processed/task-refactor-p0-3-useevents.md. Auf origin/master rebased (ef6fd6c), umgesetzt + gepusht (force-with-lease → 311e0c3). NEU `frontend/src/composables/useEvents.js` (umbenannt aus useEventSearch.js): EINE Impl — toQuery (camelCase→snake_case), Single-Page ODER paginierter Range-Fetch (Optionen `{limit,paginate,maxPages}`), filters/events/total/loading/error, EINE Fixture-Fallback-Strategie. Alle 4 Consumer umgestellt: LandingView (`useEvents()`, `load`), DashboardView (2× useEvents main+reco; searchKit.js-Indirektion aufgelöst, SearchMask/EventList direkt), CalendarView (eigene load()-Pagination raus → `useEvents({limit:100,paginate:true})`), MapView (eigener Fetch raus → `useEvents({limit:100})`, Marker imperativ in L.layerGroup). `useEventSearch.js` + `dashboard/searchKit.js` entfernt. [311e0c3].
 
-**Nächster Schritt (Master/Lars):** agent/agent-2 via PR nach master mergen (protected). Browser-Funktionscheck Dashboard: Suche, Empfehlungen, Bookmarks, Rail (MiniEventRow), Error-Banner.
+**Verifikation grün:** vite build (59 Module); alle 4 View-Module transformieren sauber durch Vite-Dev (200); live gegen laufendes Backend (13 Events): limit=20 + Range(date_from/to, limit=100) + Offset-Paging + Coords (8/13 located) alle 200. (leaflet fehlte nach Rebase → `npm install --prefix frontend`.)
 
-> Frühere agent-2-Arbeit (gemergt/gepusht): Visibility-Dedup (Backend Cross-Source-Dedup + Frontend Sichtbarkeits-Tiers). Siehe Iteration History.
+**Nächster Schritt (Master/Lars):** agent/agent-2 via PR nach master mergen (protected). Finaler Browser-Visualcheck: Landing, Dashboard (Bookmarks/Rail), Kalender (Woche/Monat/Jahr), Karte (Pins).
+
+> Grenzen eingehalten: EventCard.vue/eventDisplay.js/Backend/App.vue-Nav/router-Routen nur konsumiert. Frühere agent-2-Arbeit (gemergt): Visibility-Dedup, P0.4 DashboardView-Slim. Siehe Iteration History.
 
 ## active_plans
 
@@ -60,7 +62,8 @@ status: agent-2 · refactor-p0-4 · done, ready-to-merge
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
 - **2026-06-26** · agent-2 visibility-dedup · Cross-Source-Dedup (ingest/dedup.py + Event.dedup_key + upsert_event-Merge + test_dedup.py) + Frontend Sichtbarkeits-Tiers (visibilityTier, EventCard/DashboardView Blindspot→Sichtbarkeit). pytest 57 grün. gemergt
-- **2026-06-26** · agent-2 refactor-p0-4 · rebased auf 622a0bd; DashboardView entschlackt: toter usingDemo-Pfad raus + sichtbares API-Error-Banner, fetchMe-Entdopplung, MiniEventRow extrahiert, SearchMask auf v-model (Prefill-Fix). vite build grün. agent/agent-2 gepusht [c95ce72] → Master-PR offen
+- **2026-06-26** · agent-2 refactor-p0-4 · rebased auf 622a0bd; DashboardView entschlackt: toter usingDemo-Pfad raus + sichtbares API-Error-Banner, fetchMe-Entdopplung, MiniEventRow extrahiert, SearchMask auf v-model (Prefill-Fix). vite build grün. agent/agent-2 gepusht [c95ce72] → in master gemergt
+- **2026-06-26** · agent-2 refactor-p0-3 · rebased auf ef6fd6c; ein generischer useEvents-Daten-Layer (toQuery + single/paginated Fetch + Fixture-Fallback) ersetzt 4 divergente /api/events-Clients; Landing/Dashboard/Calendar/Map umgestellt, useEventSearch.js+searchKit.js entfernt. vite build (59 Mod) + live gegen Backend (13 Events) verifiziert. force-with-lease gepusht [311e0c3] → Master-PR offen
 
 ## backlog
 
