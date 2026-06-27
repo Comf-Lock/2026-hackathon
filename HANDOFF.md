@@ -3,7 +3,7 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-26-agent-2-scraper-ki-regio
+last_updated: 2026-06-27-agent-2-handoff-save
 schema_version: "0.4"
 status: done · pr-open · awaiting-brief
 ---
@@ -14,7 +14,7 @@ status: done · pr-open · awaiting-brief
 
 ## current_task
 
-**AGENT-2 (Branch agent/agent-2) — Scraper-Brief `task-scraper-ki-regio` abgeschlossen, PR offen (Master merged).** Neuer statischer Adapter `backend/app/ingest/adapters/ki_regio.py` für `ki-regio.de/veranstaltungen` (KI-Regios eigene KI-Events, statisches WordPress „Cool Timeline", kein Playwright) [cf43a7f]. Vorlage `thws.py`: pure `parse_ki_regio(html)` + dünner async `fetch` via shared `_http`; registriert als `ki_regio`, `broad=False` (IT-native → alle Events behalten). Eine additive Import-Zeile in `adapters/__init__.py`. Test + getrimmte echte Fixture (`ki_regio_veranstaltungen.html`, 5 Einträge→4 Records: Zeit-aus-Beschreibung, City-Detection Würzburg/Bad Kissingen/Bad Neustadt, Monats-only-Skip). **Verifiziert:** pytest **141 grün**; `list` zeigt `ki_regio`; Live-Dry-Run `found=26 kept=26`. Brief nach `_scrape/processed/`. **Env-Fix:** fehlende Dep `pywebpush>=2.0` (von Master via `push.py` deklariert) ins venv installiert, damit conftest lädt — nur lokal, requirements.txt schon korrekt. **Hinweis:** `git rebase origin/master` ersetzte HANDOFF.md erneut durch Masters Version (Rebase-Eigenheit — `merge=ours` greift nur bei Merge); agent-2-HANDOFF aus 9b9ad51 wiederhergestellt. **Vorherige Briefs:** enrichment-Refactor (PR#47, gemergt), scraper-research (PR#51). **Nächster Schritt:** Auf den nächsten Brief von Master warten (_scrape/inbox/). Bei Session-Start ohne neuen Brief: Session parken und melden — keine Arbeit erfinden.
+**AGENT-2 (Branch agent/agent-2) — alle drei Master-Briefs abgearbeitet, Worktree clean, alles gepusht.** Session 2026-06-26/27: (1) enrichment-Refactor (Magic Numbers → Konstanten, `_utcnow`→shared `app/_time.utcnow`; PR#47 gemergt), (2) Recherche-Doc `documentation/features/scraper-sources-research.md` (HTML-Quellen ohne Feed; PR#51 gemergt), (3) neuer statischer Scraper `ki_regio` (`ki-regio.de/veranstaltungen`, Cool-Timeline-Markup, `broad=False`; PR#54 gemergt; pytest 141 grün, Live found=26 kept=26). Danach: verwaisten `http.server:8090` (agentuser, prototype-Dir) beendet; **Rebase-HANDOFF-Falle** als To-Do an `agent-core/agent-1`-Inbox eskaliert (`merge=ours` greift nicht bei Rebase → `ORIG_HEAD`-Fix vorgeschlagen). **Wiederkehrend:** jeder Brief-Start `git rebase origin/master` ersetzt HANDOFF.md durch Masters Version → danach aus letztem agent-2-HANDOFF-Commit (reflog/`ORIG_HEAD`) restaurieren. **Nächster Schritt:** Auf den nächsten Brief von Master warten (`_scrape/inbox/`); ohne Brief Session parken, keine Arbeit erfinden.
 
 ## active_plans
 
@@ -25,7 +25,7 @@ status: done · pr-open · awaiting-brief
   path: plans/event-radar-slice-2.md
   status: in_progress
 
-> Hinweis: slice-1 deployed/gemergt (PR#3); Datei bewusst NICHT gelöscht (Agent-Branches referenzieren sie, aktive Parallelarbeit). slice-2 wird von Agent-3 (Ingest/Scraper) fortgeführt.
+> Hinweis: slice-1 deployed/gemergt (PR#3); Datei bewusst NICHT gelöscht (Agent-Branches referenzieren sie, aktive Parallelarbeit). slice-2 wird von Agent-3 (Ingest/Scraper) fortgeführt. Zwei weitere Plan-Dateien in plans/ (refactor-architecture-audit, agent-4-integration-real-events) gehören anderen Agenten — nicht agent-2s active_plans.
 
 ## read_first_critical
 
@@ -51,11 +51,11 @@ status: done · pr-open · awaiting-brief
 
 ## Iteration History
 
-- **2026-06-25** · event-radar-slice1 · Onboarding, Stack-Lock (vue-vite+fastapi-postgres), Event-Radar-Rebrand+Logo, Architektur+Connector-Vault-Doc, Slice-1-Plan
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
 - **2026-06-26** · agent-2-tech-doc-cut · Refactor-Serie (P2-hygiene, keyword-tuning+feeds, P1.3-logging, P2-dedup, date-helper-merge) + Tech-Doku-README auf aktuellen Stand; alle via PR an Master, pytest grün
+- **2026-06-27** · agent-2-briefs-batch · 3 Master-Briefs done (enrichment-Refactor PR#47, scraper-research PR#51, ki_regio-Scraper PR#54); Rebase-HANDOFF-Falle an agent-core eskaliert; verwaisten :8090-Server beendet
 
 ## backlog
 
