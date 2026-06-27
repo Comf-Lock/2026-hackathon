@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-4
 created: 2026-06-25
-last_updated: 2026-06-26-agent-4-map-mobile-done
+last_updated: 2026-06-27-handoff-save
 schema_version: "0.4"
-status: master-orchestration · agent-4-map-mobile-done
+status: master-orchestration · agent-4-map-mobile-done · handoff-save
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,7 @@ status: master-orchestration · agent-4-map-mobile-done
 
 ## current_task
 
-agent/agent-4 (sole frontend agent). **Karten-Tab mobil — FERTIG, committet [04d03bc], gepusht, vite build grün.** MapView: <880px Karte oben (volle Breite, feste Höhe leaflet-host 56vh/min320, <640px 52vh/min300) + Liste darunter, Liste flowt mit der Seite (.side max-height:none, kein nested-scroll). Leaflet-Falle gefixt: refreshMapSize()→map.invalidateSize() nach nextTick beim Mount, nach Daten-Load UND auf window 'resize' (Listener in onBeforeUnmount entfernt) → keine grauen Tiles. MapEventList (hatte 0 Media-Queries): @640px Header-Controls + Items full-width/touch, interner Scroll aus. Nur MapView.vue + MapEventList.vue, Desktop unangetastet. Kontext: alle agent-4-Tasks dieser Session (Responsive, Map-Online-Filter, Geo-Radius, Infinite-Scroll, Web-Push, Map-Mobil) sind in master gemergt; Branch nach jedem Rebase == master, HANDOFF jeweils aus ORIG_HEAD restored (Rebase bricht merge=ours). **Nächster Schritt:** Kein offener Auftrag auf agent/agent-4 — auf neuen Master-Brief in _scrape/inbox/ oder Lars-Input warten. HINWEISE: Web-Push braucht VAPID-Key-Setup im Backend (Agent-3) + iOS-Push nur als installierte PWA; On-Device/PWA-Install braucht HTTPS (Master: Tailscale-serve/Cert).
+agent/agent-4 (sole frontend agent). **Kein offener Auftrag.** Alle agent-4-Tasks (Responsive, Map-Online-Filter, Geo-Radius, Infinite-Scroll, Web-Push, Map-Mobil) sind in master gemergt; Branch == master, clean. Karten-Tab mobil zuletzt fertig [04d03bc]. Diese Session: handoff-save — Plan-Audit registrierte 2 bisher unregistrierte Pläne in active_plans (refactor-architecture-audit=planned, agent-4-integration-real-events=done/superseded); bewusst nichts gelöscht (Multi-Agent-Repo, fremde Branch-Referenzen). **Nächster Schritt:** Kein aktiver Plan auf agent/agent-4 — auf neuen Master-Brief in _scrape/inbox/ oder Lars-Input warten. HINWEISE: Web-Push braucht VAPID-Key-Setup im Backend (Agent-3) + iOS-Push nur als installierte PWA; PWA-Install braucht HTTPS (Master: Tailscale-serve/Cert).
 
 ## active_plans
 
@@ -24,8 +24,16 @@ agent/agent-4 (sole frontend agent). **Karten-Tab mobil — FERTIG, committet [0
 - name: event-radar-slice-2
   path: plans/event-radar-slice-2.md
   status: in_progress
+- name: refactor-architecture-audit
+  path: plans/refactor-architecture-audit.md
+  status: planned
+- name: agent-4-integration-real-events
+  path: plans/agent-4-integration-real-events.md
+  status: done
 
 > Hinweis: slice-1 deployed/gemergt (PR#3); Datei bewusst NICHT gelöscht (Agent-Branches referenzieren sie, aktive Parallelarbeit). slice-2 wird von Agent-3 (Ingest/Scraper) fortgeführt.
+> refactor-architecture-audit: projektweiter Konsolidierungs-Plan (12 offen), Befunde teils in fremdem Agenten-Eigentum — nicht agent-4-exklusiv, nicht löschen.
+> agent-4-integration-real-events: Phase 1 verifiziert/committet [9f01735], Phase 2 von Master-Integration übernommen → superseded; analog slice-1 bewusst behalten statt gelöscht.
 
 ## read_first_critical
 
@@ -51,11 +59,11 @@ agent/agent-4 (sole frontend agent). **Karten-Tab mobil — FERTIG, committet [0
 
 ## Iteration History
 
-- **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
 - **2026-06-26** · agent-4 calendar+map+sidelist+audit · /calendar (Woche/Monat/Jahr) + /map (Leaflet/OSM) mit Event-Seitenliste, click-to-fly, Profil-Filter über useEvents [fe1c441]; Architektur-Audit → Refactor-Plan [e0e2478], Info an Master-Inbox. agent/agent-4 gepusht → Master-PR(s)
 - **2026-06-26** · agent-4-session · 5 Frontend-Tasks fertig+gepusht (Auth-Refactor P1.5, Kalender-Detail-Spalte, Logged-out-Layout+Tab Suche, PWA-Shell installierbar, Header-positionsstabil); PWA-Responsive (Phase 1b) Survey fertig, Edits offen (Plan im Journal 12:31). Wiederkehrend: Rebase bricht HANDOFF merge=ours → jedes Mal aus ORIG_HEAD restoren.
 - **2026-06-26** · agent-4-frontend-sweep · PWA-Responsive + Map-Online/Vor-Ort-Filter + Geo-Radius-Toggle (useRadius, Profil-Radius-Default, Radius auf Karte) + Infinite-Scroll (loadMore/hasMore + IntersectionObserver) + Web-Push (injectManifest-SW + usePush + Profil-UI) + Karten-Tab-Mobil (invalidateSize, MapEventList-Media-Queries). Alle via PR nach master gemergt.
+- **2026-06-27** · handoff-save · Plan-Audit: refactor-architecture-audit (planned) + agent-4-integration-real-events (done/superseded) in active_plans registriert, nichts gelöscht; kein Code-Change.
 
 ## backlog
 
