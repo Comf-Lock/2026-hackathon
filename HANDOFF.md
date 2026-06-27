@@ -3,7 +3,7 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-3
 created: 2026-06-25
-last_updated: 2026-06-26-agent3-push-backend-finish
+last_updated: 2026-06-27-agent3-push-finish
 schema_version: "0.4"
 status: slice1-deployed · master-orchestration · agent3-push-backend-finish
 ---
@@ -14,18 +14,7 @@ status: slice1-deployed · master-orchestration · agent3-push-backend-finish
 
 ## current_task
 
-agent/agent-3 (Backend-Worker). **Web-Push Backend vervollständigt** (`6b68939`, auf rebased origin/master, bereit für Master-PR). `feat(push): vapid-public-key + test-send endpoints + keygen helper`. Baut auf dem bereits gemergten Push-Backend auf. Scope brief-konform (nur `push.py` + `requirements.txt` + Test; `main.py`/`config.py` brauchten nichts — Router war schon registriert, VAPID-Settings schon da). Neu:
-- `GET /api/push/vapid-public-key` (no-auth) → `{publicKey}` = applicationServerKey aus Config.
-- `POST /api/push/test` (auth) → Test-Notification an alle Subs des Users via `send_push` (tote 410/404 werden gepruned), `{sent}`.
-- `generate_vapid_keypair()` + CLI `python -m app.push gen-vapid` → druckt `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT`. **Selber Code mintet + konsumiert → kein Format-Mismatch:** private = raw 32-byte base64url-Scalar (pywebpush `Vapid.from_string`→`from_raw`), public = uncompressed 65-byte EC-Point base64url (browser-`applicationServerKey`). Empirisch verifiziert (Round-Trip + Signing).
-- Subscription-Body war bereits Browser-`toJSON()`-Format (`endpoint`, `keys.p256dh/auth`) — keine Änderung.
-- `py-vapid` explizit in `requirements.txt`. **162 pytest grün.**
-
-**Frontend-Contract jetzt komplett** (Agent-4 baut Subscribe-UI dagegen): `GET /api/push/vapid-public-key`, `POST/DELETE /api/push/subscription`, `POST /api/push/test`.
-
-**Master muss:** `python -m app.push gen-vapid` ausführen → die 3 Werte per Relay in `backend/.env` setzen, dann Backend-Reload. (Postgres-Migration `push_subscriptions` aus dem vorherigen Push-PR weiterhin nötig, falls noch nicht ausgeführt.)
-
-**Nächster Schritt (agent-3):** Kein offener Task. Auf nächsten Master-Brief in `_scrape/inbox/` warten.
+agent/agent-3 (Backend-Worker). Session-Stand: drei Master-Briefs nacheinander abgearbeitet, je rebased auf origin/master, committet + gepusht (Branch @ 87fbb8f), Master merged via PR: (1) Web-Push BACKEND-Groundwork (`6ee7c5f`, bereits in master) — PushSubscription-Model, /api/push/subscription (toJSON-Body), send_push() über pywebpush; (2) Scraper #2 Startbahn27 Schweinfurt (`e44211c`) — statischer TYPO3-Monatsgrid-Adapter, broad=True, live found=78 kept=31; (3) Web-Push Backend vervollständigt (`6b68939`) — GET /api/push/vapid-public-key (no-auth), POST /api/push/test (auth, prunet tote Subs), `python -m app.push gen-vapid` (selber Code mintet+konsumiert die VAPID-Keys → kein Format-Mismatch). 162 pytest grün. **Master-Action-Items:** Postgres-Migration `push_subscriptions` (CREATE TABLE im Commit-Body von 6ee7c5f) + `python -m app.push gen-vapid` → Werte per Relay in backend/.env + Backend-Reload. Frontend-Push-Contract komplett (Agent-4 baut Subscribe-UI dagegen). **Nächster Schritt:** Kein offener agent-3-Task — auf nächsten Master-Brief in _scrape/inbox/ warten.
 
 ## active_plans
 
@@ -66,6 +55,7 @@ agent/agent-3 (Backend-Worker). **Web-Push Backend vervollständigt** (`6b68939`
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-27** · agent3-push-finish · 3 Briefs: Web-Push-Backend (6ee7c5f, gemergt) + Startbahn27-Scraper (e44211c, found=78/kept=31) + Push-Backend-Finish (6b68939: vapid-public-key + test-send + gen-vapid CLI). 162 pytest grün. Master: push_subscriptions-Migration + gen-vapid→.env
 
 ## backlog
 
