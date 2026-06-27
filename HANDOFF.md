@@ -1,11 +1,11 @@
 ---
 type: handoff
 vorhaben: 2026-hackathon
-working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
+working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-27-agent1-mobile-oauth-fixes
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: slice1-deployed · master-orchestration · agent1-mobile-oauth-fixes
 ---
 
 # Handoff — 2026-hackathon
@@ -14,9 +14,7 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## current_task
 
-> **agent/agent-1 Stand 2026-06-26 (12:55):** Vier frühere Deliverables sind in `origin/master` **gemergt** (Radius-Suche `bcf522e`, Logging-Refactor `bd5a2cc`, tag-Freitext `1e55f22`, OAuth redirect_uri host-abhängig `5497379`). **Offen für Master-PR — ein Commit voraus:** `936cc99` `fix(auth): host-aware post-login redirect for tailscale` — Post-Login-Redirect nutzt jetzt `_derive_frontend_base(request)` (geteilter `_forwarded_origin`-Helfer mit `_derive_redirect_uri`): über Tailscale → `https://{xf_host}/dashboard`, über localhost → `settings.frontend_url` (`:5173`, absolut — Callback trifft Backend `:8000`, SPA liegt `:5173`). Session-Cookie verifiziert (SessionMiddleware `same_site=lax`, `https_only=False` → Cookie über http+https, übersteht OAuth-Roundtrip; je Host eigenes host-only Cookie, kein Domain-Pinning). 143 pytest grün. **⚠️ Ops (gilt weiter):** Google Console braucht BEIDE Callback-URLs (`http://localhost:8000/...callback` + `https://macbook-pro-von-lars.tail7629bb.ts.net/api/auth/google/callback`). **Nächster Schritt:** Master merged `936cc99` via PR. Kein offener agent-1-Code-Task.
-
-Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert jetzt 3 Worker-Agenten** (agent-1/2/3, je eigener Worktree/Branch). master @ 0cc9070 (PR#3/4/5 gemergt: slice-2 ingest core + login/dashboard frontend). Lokal deployed OHNE Docker: uvicorn :8000 + Vite :5173 (beide 0.0.0.0), SQLite-Fallback via `backend/.env` (`DATABASE_URL=sqlite:///./eventradar.db`). `DEV_BYPASS_AUTH`-Flag in `frontend/src/router.js` aktiv (dev-only, NICHT committed) damit /dashboard ohne Google-Login sichtbar. **Task-Verteilung** (Briefs je in `<worktree>/_scrape/inbox/`): Agent-3=Backend Scraper-CLI (ICS/RSS Mainfranken) + `GET /api/events`; Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer); Agent-2=Dashboard/logged-in (konsumiert SearchMask). API-Contract + Komponenten-Interface in allen Briefs fixiert. **BLOCKER:** Worker-tmux-Sessions laufen auf larskohlmorgen-Socket (UID 501); Master-Session ist agentuser → kann `send-keys` nicht abfeuern. **Nächster Schritt:** Lars startet Master-Session als larskohlmorgen neu, dann 3× `tmux send-keys` (exakte Befehle in HANDOFF.notes.md) abfeuern + Sessions beobachten; gemergte Worker-PRs nach master integrieren; Dev-Env am Laufen halten.
+agent/agent-1 · **Session 2026-06-26/27: fünf Backend/Frontend-Deliverables fertig + gepusht.** In `origin/master` GEMERGT: Radius-Suche Haversine (`bcf522e`), API-Logging-Refactor P1.3 (`bd5a2cc`), tag-Filter als Freitext (`1e55f22`), OAuth redirect_uri host-abhängig (`5497379`). **Voraus für Master-PR — 1 Commit:** `936cc99` `fix(auth): host-aware post-login redirect` — Post-Login-Redirect via geteiltem `_forwarded_origin`-Helfer (`_derive_frontend_base`/`_derive_redirect_uri`): Tailscale → `https://{xf_host}/dashboard`, localhost → `settings.frontend_url` (:5173 absolut). Session-Cookie cross-host verifiziert (SessionMiddleware `same_site=lax`, `https_only=False` → http+https, host-only je Host, kein Domain-Pinning). 143 pytest grün. **⚠️ Ops:** Google Console braucht BEIDE Callback-URLs (`http://localhost:8000/api/auth/google/callback` + `https://macbook-pro-von-lars.tail7629bb.ts.net/api/auth/google/callback`). Nebenbei: `leaflet` (frontend) + `pywebpush>=2.0` (backend, von master/Agent-3 push.py) waren deklariert aber nicht im Worktree installiert → `npm install`/`pip install` (kein Code-Change). **Nächster Schritt:** Master merged `936cc99` via PR; kein offener agent-1-Code-Task — auf neuen Auftrag warten.
 
 ## active_plans
 
@@ -57,6 +55,7 @@ Event Radar (IT-Event-Aggregator Mainfranken/ZDI). **Master-Agent orchestriert j
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-27** · agent1-mobile-oauth-fixes · Radius-Suche + API-Logging-Refactor (P1.3) + tag-Freitext + OAuth redirect_uri host-abhängig (4× in master gemergt) + host-aware post-login redirect (936cc99, PR-pending); 143 pytest grün
 
 ## backlog
 
