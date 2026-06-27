@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-1
 created: 2026-06-25
-last_updated: 2026-06-27-agent1-mobile-oauth-fixes
+last_updated: 2026-06-27-agent1-rolling-rotation
 schema_version: "0.4"
-status: slice1-deployed · master-orchestration · agent1-mobile-oauth-fixes
+status: master-orchestration · agent1-mobile-oauth-fixes · agent1-rolling-rotation
 ---
 
 # Handoff — 2026-hackathon
@@ -14,7 +14,7 @@ status: slice1-deployed · master-orchestration · agent1-mobile-oauth-fixes
 
 ## current_task
 
-agent/agent-1 · **Session 2026-06-26/27: fünf Backend/Frontend-Deliverables fertig + gepusht.** In `origin/master` GEMERGT: Radius-Suche Haversine (`bcf522e`), API-Logging-Refactor P1.3 (`bd5a2cc`), tag-Filter als Freitext (`1e55f22`), OAuth redirect_uri host-abhängig (`5497379`). **Voraus für Master-PR — 1 Commit:** `936cc99` `fix(auth): host-aware post-login redirect` — Post-Login-Redirect via geteiltem `_forwarded_origin`-Helfer (`_derive_frontend_base`/`_derive_redirect_uri`): Tailscale → `https://{xf_host}/dashboard`, localhost → `settings.frontend_url` (:5173 absolut). Session-Cookie cross-host verifiziert (SessionMiddleware `same_site=lax`, `https_only=False` → http+https, host-only je Host, kein Domain-Pinning). 143 pytest grün. **⚠️ Ops:** Google Console braucht BEIDE Callback-URLs (`http://localhost:8000/api/auth/google/callback` + `https://macbook-pro-von-lars.tail7629bb.ts.net/api/auth/google/callback`). Nebenbei: `leaflet` (frontend) + `pywebpush>=2.0` (backend, von master/Agent-3 push.py) waren deklariert aber nicht im Worktree installiert → `npm install`/`pip install` (kein Code-Change). **Nächster Schritt:** Master merged `936cc99` via PR; kein offener agent-1-Code-Task — auf neuen Auftrag warten.
+agent/agent-1 · **Session 2026-06-26/27 gesichert + rotiert.** In `origin/master` GEMERGT: Radius-Suche Haversine (`bcf522e`), API-Logging-Refactor P1.3 (`bd5a2cc`), tag-Filter als Freitext (`1e55f22`), OAuth redirect_uri host-abhängig (`5497379`). **Voraus für Master-PR — 1 Commit:** `936cc99` `fix(auth): host-aware post-login redirect` — Post-Login-Redirect via geteiltem `_forwarded_origin`-Helfer: Tailscale → `https://{xf_host}/dashboard`, localhost → `settings.frontend_url` (:5173 absolut). Session-Cookie cross-host verifiziert (`same_site=lax`, `https_only=False`). 143 pytest grün. **⚠️ Ops:** Google Console braucht BEIDE Callback-URLs (`http://localhost:8000/api/auth/google/callback` + `https://macbook-pro-von-lars.tail7629bb.ts.net/api/auth/google/callback`). **Nächster Schritt:** Master merged `936cc99` via PR; kein offener agent-1-Code-Task — auf neuen Auftrag warten.
 
 ## active_plans
 
