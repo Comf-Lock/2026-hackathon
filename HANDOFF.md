@@ -3,9 +3,9 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/master
 created: 2026-06-25
-last_updated: 2026-06-25-master-orchestration
+last_updated: 2026-06-27-feature-sprint
 schema_version: "0.4"
-status: architecture · slice1-deployed · master-orchestration
+status: feature-complete-core · web-push-live · pwa-prod-build-deployed
 ---
 
 # Handoff — 2026-hackathon
@@ -20,18 +20,17 @@ status: architecture · slice1-deployed · master-orchestration
 
 **Geliefert & live:** Umkreissuche (Haversine, Suche+Karte, „Umkreis berücksichtigen"-Häkchen + Profil-Radius), Karten-Filter Online/Vor-Ort, Infinite-Scroll, Responsive + PWA-Shell (vite-plugin-pwa **injectManifest**, custom `src/sw.js`), 3 Scraper (ki_regio/startbahn27/informatik_uni_wue → 136 Events), iPhone-Login via Tailscale (host-abh. OAuth in `auth.py`: `_derive_redirect_uri`/`_derive_frontend_base` aus `X-Forwarded-Host`), tag-Suche=Freitext, **V3-Logo** (BrandLogo.vue **+** logo.svg-Favicon — zwei Stellen!), **Web-Push komplett gebaut** (Backend `push.py`: `/api/push/subscription|test|vapid-public-key` + `gen-vapid` CLI; Frontend `usePush.js` + Subscribe-Toggle im Profil + SW-Push-Handler).
 
-**OFFEN / nächste Schritte:** (1) **Web-Push scharf schalten:** Lars führt `/tmp/set-vapid-and-restart.sh` aus (gen-vapid-Keys → .env + API-Neustart), dann End-to-End-Test via Profil-Toggle + `POST /api/push/test`. (2) **agent-4 in Arbeit:** Karten-Tab mobil (`MapView`/`MapEventList` Media-Queries + Leaflet-Höhe/`invalidateSize`). (3) PWA-**Install** am Handy braucht Prod-Build hinter HTTPS (Dev-SW aus). (4) Mögliches Pitch-Gap: Veranstalter-**Event-Formular** (nur Feed-Registrierung `POST /api/feeds` existiert, kein Einzel-Event-Submit). (5) weitere Scraper (Recherche-Rang 4–8 in `documentation/features/scraper-sources-research.md`), Refactoring-Restposten.
+**Stand 2026-06-27:** VAPID-Keys **gesetzt** (Push scharf), Karten-Tab mobil **gemergt**, **Prod-Build läuft hinter Tailscale-HTTPS** (`vite preview` :4173, PWA installierbar). uvicorn `:8000` + `vite preview` :4173 (ts.net) + `vite dev` :5173 laufen.
+
+**OFFEN / nächste Schritte:** (1) **Web-Push End-to-End am iPhone testen** (App als PWA installieren → Profil-Toggle → `POST /api/push/test`). (2) Mögliches Pitch-Gap: Veranstalter-**Event-Formular** (nur Feed-Registrierung `POST /api/feeds`, kein Einzel-Event-Submit). (3) weitere Scraper (Recherche-Rang 4–8 in `documentation/features/scraper-sources-research.md`), Refactoring-Restposten (`plans/refactor-architecture-audit.md`). (4) Pitch-Deck (`../../organization/2026-hackathon/pitch.html`) an neue Features anpassen. (5) ggf. öffentliches Deploy. **Hinweis:** ts.net = statischer Prod-Build → nach Frontend-Merges `npm run build` neu, sonst dort nicht sichtbar.
 
 ## active_plans
 
-- name: event-radar-slice-1
-  path: plans/event-radar-slice-1.md
-  status: done
-- name: event-radar-slice-2
-  path: plans/event-radar-slice-2.md
+- name: refactor-architecture-audit
+  path: plans/refactor-architecture-audit.md
   status: in_progress
 
-> Hinweis: slice-1 deployed/gemergt (PR#3); Datei bewusst NICHT gelöscht (Agent-Branches referenzieren sie, aktive Parallelarbeit). slice-2 wird von Agent-3 (Ingest/Scraper) fortgeführt.
+> slice-1 / slice-2 / agent-4-integration-real-events (alle erledigt) am 2026-06-27 im Plan-Audit entfernt — Architektur-Lessons leben in `documentation/technical/README.md`. `refactor-architecture-audit` hält den laufenden Refactoring-Backlog (offene P1/P2-Items; Regel „immer ein Agent am Refactoring").
 
 ## read_first_critical
 
@@ -39,9 +38,10 @@ status: architecture · slice1-deployed · master-orchestration
 
 ## open_questions
 
-- Google-OAuth-Client (Client-ID/Secret + Redirect-URIs) — Lars legt ihn an, sobald Login lokal getestet werden soll (Code baut gegen .env-Platzhalter, nicht blockierend)
-- Versioniertes Seed-Skript (backend/seed/) für Demo-Events? — offen, bei Bedarf anlegen
-- Veranstalter-Anmeldung als bewusstes Produktziel mit aufnehmen (vs. erst nur Aggregation)?
+- Web-Push **End-to-End am iPhone** testen (PWA installiert, Profil-Toggle → `POST /api/push/test`) — Backend scharf, Subscribe-UI da, Prod-Build läuft hinter Tailscale-HTTPS
+- **Veranstalter-Event-Formular:** Pitch verspricht „Veranstalter stellen Events selbst ein", real existiert aber nur Feed-Registrierung (`POST /api/feeds`), **kein Einzel-Event-Submit** — echtes Feature-Gap fürs Pitch
+- Öffentliches / x1pro-**Deploy** (läuft aktuell nur localhost + Tailscale-Serve)
+- RSVP/Teilnehmerzahl bleibt 0 (kein Luma-Event live, Meetup braucht API-Key) — gewollt?
 
 > **Kaltzone:** decisions_made, Iteration History, Backlog und Landmarks liegen unterhalb dieses Markers — per `Read` vollständig nachladen bei Bedarf.
 <!-- /hot-context -->
@@ -54,6 +54,11 @@ status: architecture · slice1-deployed · master-orchestration
 - **2026-06-25 · Mockup-Richtung: simpel.** `frontend/index.html` (aufgeräumtes Landing) ist Basis der Vue-App-Shell, nicht die dichte `dashboard.html`-Variante.
 - **2026-06-25 · Auth-Design (selbst entschieden, Plan-Empfehlung):** httpOnly-Session-Cookie nach OAuth-Callback (statt JWT im Frontend); Authorization-Code-Flow backend-seitig via Authlib; `vue-router` für `/` und `/profile`.
 - **2026-06-25 · Multi-Agent-Verteilung (Lars bestätigt):** Event-Plattform-Arbeit auf 3 Worker-Agenten entlang Eigentums-Grenzen gesplittet — Agent-3=Backend (Scraper-CLI + `GET /api/events`), Agent-1=Index/logged-out + geteilte `SearchMask.vue` (Eigentümer), Agent-2=Dashboard/logged-in (konsumiert SearchMask). **Eine** geteilte SearchMask statt zweimal bauen (die User-Tasks „Suchmaske Index" + „logged-in" sind dieselbe Komponente). API-Contract + Komponenten-Interface in allen Briefs fixiert → parallele Arbeit ohne Warten. Briefs in je `<worktree>/_scrape/inbox/` (Details in HANDOFF.notes.md).
+- **2026-06-26 · Orchestrierungs-Modell:** auf **5 Worker-Agenten** skaliert; Master integriert **ausschließlich via `gh pr`** (branch protection), schützt bei jedem Merge master-eigene Dateien (`git checkout origin/master -- HANDOFF.md README.md .gitignore`). Konfliktsicher = disjunkte File-Sets pro Welle. Master implementiert **nicht** selbst (nur PR-Merge, Delegation, localhost-Deploy); kleine Asset-/Config-Änderungen (Logo, vite.config) macht Master direkt via PR.
+- **2026-06-26 · Tailscale + host-abhängige OAuth (load-bearing):** Handy-Zugang nur über die **Tailscale-Serve-URL** `https://…ts.net/` (443, **ohne Port**) — nur die setzt `X-Forwarded-Host`. `auth.py` leitet `redirect_uri` **und** Post-Login-Redirect daraus ab (`_forwarded_origin`), Fallback localhost. Der direkte `:5173`-Vite-Port setzt den Header **nicht** → dort scheitert Login. Beide Google-Callbacks (localhost + ts.net) registriert.
+- **2026-06-26 · Web-Push-Architektur:** vite-plugin-pwa auf **`injectManifest`** + custom `src/sw.js` (Workbox-Precache **+** push/notificationclick). Backend `pywebpush`+`py-vapid`, `gen-vapid`-CLI; VAPID-Keys via Relay in `.env` (nie Chat/Git). iOS-Push nur als **installierte PWA**.
+- **2026-06-26/27 · PWA-Install-Deploy:** Tailscale-Serve auf **`vite preview` (Prod-Build, :4173)** umgebogen, weil der Dev-SW aus ist; `preview`-Block in `vite.config.js` (eigener /api-Proxy) hält API+Login same-origin. **Trade-off:** ts.net zeigt jetzt den statischen Build → Frontend-Änderungen erst nach `npm run build` sichtbar (Dev bleibt auf :5173).
+- **2026-06-27 · Logo V3 (Lars gewählt):** zwei Render-Stellen — Header-Komponente **`BrandLogo.vue`** (inline) **und** Favicon **`logo.svg`** — beide auf V3 (teal-leuchtende Ringe + Glow). Logo-Änderungen immer an BEIDEN Stellen.
 
 ## Iteration History
 
@@ -61,6 +66,7 @@ status: architecture · slice1-deployed · master-orchestration
 - **2026-06-25** · slice1-deploy · Slice 1 gebaut + PR #2 + lokal deployed (SQLite, :8000/:5174); Roadmap + Feed-Recherche (event-feeds-verified.md: Meetup-ICS/ZDI/FRIZZ verifiziert); Boundary agent-1 mit Lars geklaert (so lassen)
 - **2026-06-25** · master-orchestration · master ff→0cc9070 (PR#3/4/5); lokal ohne Docker deployed (:8000/:5173, SQLite); 3 Agenten-Briefs verteilt (scraper / index+searchmask / dashboard) mit fixem API-Contract; tmux-Dispatch braucht larskohlmorgen-Relaunch (Blocker)
 - **2026-06-26** · agent-1 feed-input-channel · rebased auf master (49866a0); data-driven Feed-Registrierung gebaut: feeds.yaml + feed_loader (Phase 1, 5 Feeds migriert) + FeedSource-Model + /api/feeds (Phase 2). 49 pytest grün. agent/agent-1 gepusht → Master-PR offen
+- **2026-06-26/27** · feature-sprint (5 Agenten, ~20 PRs) · Postgres-Switch + Sonnet-Scoring; rich EventCard (Sichtbarkeit/Cross-Source-Dedup, topic/intent-Balken, farbverlinkte Pills); Bookmarks, Kalender- + Karten-View, Geocoding (136 Events); **Umkreissuche** (Haversine, Suche+Karte) + „Umkreis berücksichtigen"-Häkchen + Profil-Radius; Datum-Prefill; tag=Freitext; Infinite-Scroll; **Mobile-Responsive + installierbare PWA** (injectManifest); **3 Scraper** ki_regio/startbahn27/informatik_uni_wue; **iPhone-Login via Tailscale** (host-abh. OAuth); **Web-Push** Backend+Frontend (VAPID gesetzt, scharf); **V3-Logo** (BrandLogo+Favicon); README+Security-Härtung (`.env.*` gitignored, keine Secrets im Repo); **Prod-Build hinter Tailscale-HTTPS** für PWA-Install. Plan-Audit: slice-1/2 + agent-4-integration (done) entfernt, refactor-architecture-audit bleibt aktiv.
 
 ## backlog
 
