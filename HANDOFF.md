@@ -3,7 +3,7 @@ type: handoff
 vorhaben: 2026-hackathon
 working_directory: /Users/larskohlmorgen/_clients/zdi/projects/coding/2026-hackathon/agent-2
 created: 2026-06-25
-last_updated: 2026-06-27-agent-2-handoff-save
+last_updated: 2026-06-27-rolling-rotate
 schema_version: "0.4"
 status: done · pr-open · awaiting-brief
 ---
@@ -14,7 +14,7 @@ status: done · pr-open · awaiting-brief
 
 ## current_task
 
-**AGENT-2 (Branch agent/agent-2) — alle drei Master-Briefs abgearbeitet, Worktree clean, alles gepusht.** Session 2026-06-26/27: (1) enrichment-Refactor (Magic Numbers → Konstanten, `_utcnow`→shared `app/_time.utcnow`; PR#47 gemergt), (2) Recherche-Doc `documentation/features/scraper-sources-research.md` (HTML-Quellen ohne Feed; PR#51 gemergt), (3) neuer statischer Scraper `ki_regio` (`ki-regio.de/veranstaltungen`, Cool-Timeline-Markup, `broad=False`; PR#54 gemergt; pytest 141 grün, Live found=26 kept=26). Danach: verwaisten `http.server:8090` (agentuser, prototype-Dir) beendet; **Rebase-HANDOFF-Falle** als To-Do an `agent-core/agent-1`-Inbox eskaliert (`merge=ours` greift nicht bei Rebase → `ORIG_HEAD`-Fix vorgeschlagen). **Wiederkehrend:** jeder Brief-Start `git rebase origin/master` ersetzt HANDOFF.md durch Masters Version → danach aus letztem agent-2-HANDOFF-Commit (reflog/`ORIG_HEAD`) restaurieren. **Nächster Schritt:** Auf den nächsten Brief von Master warten (`_scrape/inbox/`); ohne Brief Session parken, keine Arbeit erfinden.
+**AGENT-2 (Branch agent/agent-2) — alle drei Master-Briefs abgearbeitet, Worktree clean, alles gepusht.** Session 2026-06-26/27: (1) enrichment-Refactor (Magic Numbers → Konstanten, `_utcnow`→shared `app/_time.utcnow`; PR#47 gemergt), (2) Recherche-Doc `documentation/features/scraper-sources-research.md` (HTML-Quellen ohne Feed; PR#51 gemergt), (3) neuer statischer Scraper `ki_regio` (`ki-regio.de/veranstaltungen`, Cool-Timeline-Markup, `broad=False`; PR#54 gemergt; pytest 141 grün, Live found=26 kept=26). Danach: verwaisten `http.server:8090` beendet; **Rebase-HANDOFF-Falle** als To-Do an `agent-core/agent-1`-Inbox eskaliert (`merge=ours` greift nicht bei Rebase → `ORIG_HEAD`-Fix vorgeschlagen). handoff-save gelaufen (be4be20), danach Rolling-Rotation bei Token-Soft-Grenze (265K). **Wiederkehrend:** jeder Brief-Start `git rebase origin/master` ersetzt HANDOFF.md durch Masters Version → danach aus letztem agent-2-HANDOFF-Commit (reflog/`ORIG_HEAD`) restaurieren. **Nächster Schritt:** Auf den nächsten Brief von Master warten (`_scrape/inbox/`); ohne Brief Session parken, keine Arbeit erfinden.
 
 ## active_plans
 
